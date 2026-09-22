@@ -1,0 +1,53 @@
+name: C++ Multi-platform CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # Сборка под Linux
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev build-essential cmake
+
+    - name: Configure CMake
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: launcher-linux
+        path: build/build/launcher
+
+  # Сборка под Windows
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      # Используем Ninja для более предсказуемой структуры папок
+      run: cmake -G "Ninja" -S . -B build
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: launcher-windows
+        # Используем поиск по подпапкам на случай, если CMake все же создаст /Release/
+        path: |
+          build/build/**/launcher.dll
+          build/build/**/Updater.exe
