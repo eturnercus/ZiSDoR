@@ -49,5 +49,5 @@ jobs:
         name: launcher-windows
         # Используем поиск по подпапкам на случай, если CMake все же создаст /Release/
         path: |
-          build/build/**/launcher.dll
+          build/build/**/launcher*.dll
           build/build/**/Updater.exe
