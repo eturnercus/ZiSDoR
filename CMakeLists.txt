@@ -28,6 +28,12 @@ if (WIN32)
         src/shared/core.cpp
     )
     target_link_libraries(launcher PRIVATE webview::core)
+
+    # Исправление для YCM: добавляем путь к EventToken.h для MinGW
+    # Используем переменную, которую предоставляет webview, или путь относительно бинарника. (По хорошему не надо аплоадить в апстрим.)
+    target_include_directories(launcher SYSTEM PRIVATE
+        "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
+    )
 else()
 	add_executable(launcher)
 	
