@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+# Хотите автокомплит кода? Я дал вам скрипт для генерации базы данных компиляции. Дальше ебитесь как хотите.
+
 if test -d compiledb_linux; then
 		echo "Перегенерация compiledb_linux..."
 		rm -rf compiledb_linux
