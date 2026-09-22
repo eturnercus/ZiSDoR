@@ -23,6 +23,7 @@ if (WIN32)
     )
 
     add_library(launcher SHARED)
+    target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
     target_sources(launcher PRIVATE
         src/windows/dll_main.cpp
         src/shared/core.cpp
