@@ -1,7 +1,10 @@
 build/
-build_linux/
-build_windows/
+build_win/
+compiledb_linux/
+compiledb_windows/
 .cache/
 .vimrc
 .ycm_extra_conf.py
 .clangd
+ycm_fixes/
+compile_commands.json

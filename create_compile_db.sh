@@ -1,21 +1,21 @@
 #!/usr/bin/env sh
 
-if test -d build_linux; then
-		echo "Перегенерация build_linux..."
-		rm -rf build_linux
+if test -d compiledb_linux; then
+		echo "Перегенерация compiledb_linux..."
+		rm -rf compiledb_linux
 else
-		echo "Генерация build_linux..."
+		echo "Генерация compiledb_linux..."
 fi
 
-cmake -B build_linux -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake -B compiledb_linux -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 
-if test -d build_windows; then
-		echo "Перегенерация build_windows..."
-		rm -rf build_windows
+if test -d compiledb_windows; then
+		echo "Перегенерация compiledb_windows..."
+		rm -rf compiledb_windows
 else
-		echo "Генерация build_windows..."
+		echo "Генерация compiledb_windows..."
 fi
 
-cmake -B build_windows -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE=mingw-w64.cmake 
+cmake -B compiledb_windows -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE=mingw-w64.cmake 
 
