@@ -37,17 +37,20 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Configure CMake
-      # Используем Ninja для более предсказуемой структуры папок
       run: cmake -G "Ninja" -S . -B build
 
     - name: Build
       run: cmake --build build --config Release
 
+    - name: Debug File Structure
+      # Этот шаг покажет нам в логах, где реально лежат файлы
+      run: dir /s build
+
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: launcher-windows
-        # Используем поиск по подпапкам на случай, если CMake все же создаст /Release/
+        # Забираем вообще все DLL и EXE из папки build
         path: |
-          build/build/**/launcher*.dll
-          build/build/**/Updater.exe
+          build/**/*.dll
+          build/**/*.exe
