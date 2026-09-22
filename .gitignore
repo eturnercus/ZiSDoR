@@ -1,0 +1,7 @@
+build/
+build_linux/
+build_windows/
+.cache/
+.vimrc
+.ycm_extra_conf.py
+.clangd

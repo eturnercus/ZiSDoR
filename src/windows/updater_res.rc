@@ -1,0 +1,84 @@
+// launcher_res.rc
+// Этот файл был автоматически создан RisohEditor 6.2.1.
+// † <-- Этот крестик помогает определять UTF-8.
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 1
+
+
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 2
+
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include <windows.h>
+#include <commctrl.h>
+#include <richedit.h>
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+//////////////////////////////////////////////////////////////////////////////
+
+#pragma code_page(65001) // UTF-8
+
+//////////////////////////////////////////////////////////////////////////////
+
+LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_DIALOG
+
+LAUNCHER_DLG DIALOG 0, 0, 222, 36
+CAPTION "Загрузка..."
+STYLE WS_POPUPWINDOW | NOT WS_DLGFRAME
+EXSTYLE WS_EX_PALETTEWINDOW
+FONT 9, "MS Shell Dlg"
+{
+    CONTROL "LOADING_BAR", -1, "msctls_progress32", 0, 16, 19, 192, 12
+    LTEXT "LABEL", -1, 17, 6, 154, 8
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_STRING
+
+STRINGTABLE
+{
+    100 "Загрузка..."
+    101 "Обновление..."
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// TEXTINCLUDE
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+
+#ifdef APSTUDIO_INVOKED
+
+1 TEXTINCLUDE
+{
+    "resource.h\0"
+}
+
+2 TEXTINCLUDE
+{
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include <windows.h>\r\n"
+    "#include <commctrl.h>\r\n"
+    "#include <richedit.h>\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\0"
+}
+
+3 TEXTINCLUDE
+{
+    "\r\n"
+    "\0"
+}
+
+#endif // def APSTUDIO_INVOKED
+
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 3
+
+#ifndef APSTUDIO_INVOKED
+
+#endif // ndef APSTUDIO_INVOKED
+
+//////////////////////////////////////////////////////////////////////////////
