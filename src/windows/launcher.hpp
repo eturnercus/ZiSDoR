@@ -6,4 +6,4 @@
 #define LAUNCHER_API __declspec(dllimport)
 #endif
 
-extern "C" LAUNCHER_API __stdcall int RunApp();
+extern "C" LAUNCHER_API int __stdcall RunApp();
