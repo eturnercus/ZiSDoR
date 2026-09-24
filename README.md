@@ -35,14 +35,6 @@
 > - mingw-w64-gcc
 > - Прямые руки
 
-### Linux
-```bash
-mkdir build && cd build
-cmake ..
-make
-```
-
-### Windows
 ```bash
 mkdir build_win && cd build_win
 cmake -DCMAKE_TOOLCHAIN_FILE=../mingw-w64.cmake -S . -B build
