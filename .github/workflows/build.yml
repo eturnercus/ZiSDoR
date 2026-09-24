@@ -47,6 +47,6 @@ jobs:
       with:
         name: launcher-windows
         path: |
-          build/build/Updater.exe
-          build/build/launcher.dll
-          build/build/libwebview.dll
+          build/build/Release/Updater.exe
+          build/build/Release/launcher.dll
+          build/build/Release/libwebview.dll
