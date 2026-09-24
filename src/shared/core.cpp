@@ -1,6 +1,7 @@
 #include "core.hpp"
 #include <iostream>
 int core::app() {
+		std::cout<<"loaded launcher"<<std::endl;
 		try {
 				webview::webview w(false, nullptr);
 				w.set_title("Basic Example");
