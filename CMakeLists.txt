@@ -20,7 +20,6 @@ else()
     set(OPTIMIZE_FLAGS "-Os")
 endif()
 
-
 include(FetchContent)
 FetchContent_Declare(
 	webview
@@ -28,23 +27,22 @@ FetchContent_Declare(
 	GIT_TAG 0.12.0
 )
 
-# Добавляем путь к EventToken.h ГЛОБАЛЬНО до того, как webview будет сконфигурирована.
+# Глобальные пути для Windows
 if (WIN32)
+    # Путь к EventToken.h для MinGW
     include_directories(SYSTEM "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include")
+    # Путь к launcher.h для всех (исправление ошибки C1083 в MSVC)
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/windows")
 endif()
 
 FetchContent_MakeAvailable(webview)
 
-
 if (WIN32)
     if (MSVC)
-        # Настройки для MSVC (Visual Studio)
         set(WIN_ABI_FLAGS "")
-        set(S_CRT_STATIC "/MT") # Статическая линковка CRT
-        # Для MSVC используем стандартные флаги оптимизации, чтобы не было предупреждений D9002
+        set(S_CRT_STATIC "/MT")
         set(MSVC_OPT "/O1")
     else()
-        # Настройки для MinGW
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(WIN_ABI_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")
@@ -61,8 +59,6 @@ if (WIN32)
        src/windows/updater.cpp
        src/windows/updater_res.rc
     )
-    # ИСПРАВЛЕНИЕ: Добавляем папку с launcher.h в пути поиска
-    target_include_directories(Updater PRIVATE src/windows)
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
@@ -86,12 +82,6 @@ if (WIN32)
             gcc
             winpthread
             -Wl,-Bdynamic
-        )
-    endif()
-
-    if (NOT MSVC)
-        target_include_directories(launcher SYSTEM PRIVATE
-            "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
         )
     endif()
 else()
