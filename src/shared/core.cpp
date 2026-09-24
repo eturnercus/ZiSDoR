@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include "debug.hpp"
 #include <iostream>
 int core::app() {
 		LOG_DEBUG("loaded launcher");
