@@ -1,5 +1,6 @@
 #include <windows.h>
-#include "launcher.h"
+#include "launcher.hpp"
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     HMODULE hDll = LoadLibraryA("launcher.dll");
