@@ -2,33 +2,45 @@
 #include <iostream>
 #include "launcher.hpp"
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    std::cout << "[Updater] Starting..." << std::endl;
+void LogDebug(const char* msg) {
+    OutputDebugStringA(msg);
+    OutputDebugStringA("\n");
+}
 
-    std::cout << "[Updater] Loading launcher.dll..." << std::endl;
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    LogDebug("[Updater] Starting...");
+
+    LogDebug("[Updater] Loading launcher.dll...");
     HMODULE hDll = LoadLibraryA("launcher.dll");
     if (!hDll) {
-        std::cout << "[Updater] Error: Could not load launcher.dll" << std::endl;
+        LogDebug("[Updater] Error: Could not load launcher.dll");
         MessageBoxA(NULL, "Could not load launcher.dll", "Error", MB_ICONERROR);
         return 1;
     }
-    std::cout << "[Updater] DLL loaded successfully: " << hDll << std::endl;
 
-    std::cout << "[Updater] Searching for RunApp function..." << std::endl;
+    char buf[64];
+    sprintf_s(buf, "[Updater] DLL loaded successfully: %p", (void*)hDll);
+    LogDebug(buf);
+
+    LogDebug("[Updater] Searching for RunApp function...");
     typedef int (*RunAppFunc)();
     RunAppFunc RunApp = (RunAppFunc)GetProcAddress(hDll, "RunApp");
 
     if (!RunApp) {
-        std::cout << "[Updater] Error: Could not find RunApp in launcher.dll" << std::endl;
+        LogDebug("[Updater] Error: Could not find RunApp in launcher.dll");
         MessageBoxA(NULL, "Could not find RunApp in launcher.dll", "Error", MB_ICONERROR);
         FreeLibrary(hDll);
         return 1;
     }
-    std::cout << "[Updater] Found RunApp at: " << (void*)RunApp << std::endl;
 
-    std::cout << "[Updater] Calling RunApp()..." << std::endl;
+    sprintf_s(buf, "[Updater] Found RunApp at: %p", (void*)RunApp);
+    LogDebug(buf);
+
+    LogDebug("[Updater] Calling RunApp()...");
     int result = RunApp();
-    std::cout << "[Updater] RunApp returned: " << result << std::endl;
+
+    sprintf_s(buf, "[Updater] RunApp returned: %d", result);
+    LogDebug(buf);
 
     FreeLibrary(hDll);
     return result;
