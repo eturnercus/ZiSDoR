@@ -18,7 +18,6 @@ if(MSVC)
     set(LINK_OPTIMIZE_FLAGS "/LTCG")
 else()
     set(OPTIMIZE_FLAGS "-Os")
-    set(LINK_OPTIMIZE_FLAGS "-s")
 endif()
 
 
@@ -28,12 +27,33 @@ FetchContent_Declare(
 	GIT_REPOSITORY https://github.com/webview/webview
 	GIT_TAG 0.12.0
 )
+
+# Добавляем путь к EventToken.h ГЛОБАЛЬНО до того, как webview будет сконфигурирована.
+if (WIN32)
+    include_directories(SYSTEM "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include")
+endif()
+
 FetchContent_MakeAvailable(webview)
 
 
 if (WIN32)
+    if (MSVC)
+        # Настройки для MSVC (Visual Studio)
+        set(WIN_ABI_FLAGS "")
+        set(S_CRT_STATIC "/MT") # Статическая линковка CRT
+    else()
+        # Настройки для MinGW
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+        set(WIN_ABI_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")
+        set(S_CRT_STATIC "")
+    endif()
+
     add_executable(Updater WIN32)
-    target_compile_options(Updater PRIVATE ${OPTIMIZE_FLAGS})
+    target_compile_options(Updater PRIVATE ${OPTIMIZE_FLAGS} ${WIN_ABI_FLAGS})
+    if(MSVC)
+        target_compile_options(Updater PRIVATE ${S_CRT_STATIC})
+    endif()
     target_sources(Updater PRIVATE
        src/windows/updater.cpp
        src/windows/updater_res.rc
@@ -42,20 +62,34 @@ if (WIN32)
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
-    target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS})
+    target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS} ${WIN_ABI_FLAGS})
+    if(MSVC)
+        target_compile_options(launcher PRIVATE ${S_CRT_STATIC})
+    endif()
     target_link_options(launcher PRIVATE ${LINK_OPTIMIZE_FLAGS})
     target_sources(launcher PRIVATE
         src/windows/dll_main.cpp
         src/shared/core.cpp
     )
 
-    target_link_libraries(launcher PRIVATE webview::core)
+    if (MSVC)
+        target_link_libraries(launcher PRIVATE webview::core)
+    else()
+        target_link_libraries(launcher PRIVATE
+            webview::core
+            -Wl,-Bstatic
+            stdc++
+            gcc
+            winpthread
+            -Wl,-Bdynamic
+        )
+    endif()
 
-    # Исправление для YCM: добавляем путь к EventToken.h для MinGW
-    # Используем переменную, которую предоставляет webview, или путь относительно бинарника. (По хорошему не надо аплоадить в апстрим.)
-    target_include_directories(launcher SYSTEM PRIVATE
-        "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
-    )
+    if (NOT MSVC)
+        target_include_directories(launcher SYSTEM PRIVATE
+            "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
+        )
+    endif()
 else()
 	add_executable(launcher)
 	target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS})

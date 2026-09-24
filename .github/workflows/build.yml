@@ -30,27 +30,23 @@ jobs:
         name: launcher-linux
         path: build/build/launcher
 
-  # Сборка под Windows
+  # Сборка под Windows (MSVC)
   build-windows:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
 
     - name: Configure CMake
-      run: cmake -G "Ninja" -S . -B build
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
     - name: Build
       run: cmake --build build --config Release
-
-    - name: Debug File Structure
-      # Этот шаг покажет нам в логах, где реально лежат файлы
-      run: Get-ChildItem -Recurse build
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: launcher-windows
-        # Забираем вообще все DLL и EXE из папки build
         path: |
-          build/**/*.dll
-          build/**/*.exe
+          build/build/Updater.exe
+          build/build/launcher.dll
+          build/build/libwebview.dll
