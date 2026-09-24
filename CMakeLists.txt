@@ -41,16 +41,19 @@ if (WIN32)
         # Настройки для MSVC (Visual Studio)
         set(WIN_ABI_FLAGS "")
         set(S_CRT_STATIC "/MT") # Статическая линковка CRT
+        # Для MSVC используем стандартные флаги оптимизации, чтобы не было предупреждений D9002
+        set(MSVC_OPT "/O1")
     else()
         # Настройки для MinGW
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(WIN_ABI_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")
         set(S_CRT_STATIC "")
+        set(MSVC_OPT ${OPTIMIZE_FLAGS})
     endif()
 
     add_executable(Updater WIN32)
-    target_compile_options(Updater PRIVATE ${OPTIMIZE_FLAGS} ${WIN_ABI_FLAGS})
+    target_compile_options(Updater PRIVATE ${MSVC_OPT} ${WIN_ABI_FLAGS})
     if(MSVC)
         target_compile_options(Updater PRIVATE ${S_CRT_STATIC})
     endif()
@@ -58,11 +61,12 @@ if (WIN32)
        src/windows/updater.cpp
        src/windows/updater_res.rc
     )
-
+    # ИСПРАВЛЕНИЕ: Добавляем папку с launcher.h в пути поиска
+    target_include_directories(Updater PRIVATE src/windows)
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
-    target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS} ${WIN_ABI_FLAGS})
+    target_compile_options(launcher PRIVATE ${MSVC_OPT} ${WIN_ABI_FLAGS})
     if(MSVC)
         target_compile_options(launcher PRIVATE ${S_CRT_STATIC})
     endif()
