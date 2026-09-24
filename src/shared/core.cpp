@@ -1,7 +1,7 @@
 #include "core.hpp"
 #include <iostream>
 int core::app() {
-		std::cout<<"loaded launcher"<<std::endl;
+		LOG_DEBUG("loaded launcher");
 		try {
 				webview::webview w(false, nullptr);
 				w.set_title("Basic Example");
@@ -9,7 +9,7 @@ int core::app() {
 				w.set_html("Thanks for using webview!");
 				w.run();
 		} catch (const webview::exception &e) {
-				std::cerr << e.what() << '\n';
+				LOG_DEBUG(e.what());
 				return 1;
 		}
 
