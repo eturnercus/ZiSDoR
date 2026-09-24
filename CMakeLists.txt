@@ -8,7 +8,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/)
 
-# Оптимизация размера бинарников
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -20,6 +19,9 @@ else()
     set(OPTIMIZE_FLAGS "-Os")
 endif()
 
+# ПРИНУДИТЕЛЬНО заставляем webview собираться статически
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+
 include(FetchContent)
 FetchContent_Declare(
 	webview
@@ -27,12 +29,8 @@ FetchContent_Declare(
 	GIT_TAG 0.12.0
 )
 
-# Глобальные пути для Windows
 if (WIN32)
-    # Путь к EventToken.h для MinGW
     include_directories(SYSTEM "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include")
-    # Путь к launcher.h для всех (исправление ошибки C1083 в MSVC)
-    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/windows")
 endif()
 
 FetchContent_MakeAvailable(webview)
@@ -43,8 +41,6 @@ if (WIN32)
         set(S_CRT_STATIC "/MT")
         set(MSVC_OPT "/O1")
     else()
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(WIN_ABI_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")
         set(S_CRT_STATIC "")
         set(MSVC_OPT ${OPTIMIZE_FLAGS})
@@ -54,6 +50,12 @@ if (WIN32)
     target_compile_options(Updater PRIVATE ${MSVC_OPT} ${WIN_ABI_FLAGS})
     if(MSVC)
         target_compile_options(Updater PRIVATE ${S_CRT_STATIC})
+    else()
+        target_link_libraries(Updater PRIVATE
+            -static
+            -static-libgcc
+            -static-libstdc++
+        )
     endif()
     target_sources(Updater PRIVATE
        src/windows/updater.cpp
@@ -82,6 +84,12 @@ if (WIN32)
             gcc
             winpthread
             -Wl,-Bdynamic
+        )
+    endif()
+
+    if (NOT MSVC)
+        target_include_directories(launcher SYSTEM PRIVATE
+            "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
         )
     endif()
 else()
