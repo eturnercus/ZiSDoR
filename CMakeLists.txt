@@ -34,75 +34,32 @@ FetchContent_Declare(
 	GIT_TAG 0.12.0
 )
 
-if (WIN32)
-    include_directories(SYSTEM "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include")
-endif()
-
 FetchContent_MakeAvailable(webview)
 
 if (WIN32)
-    if (MSVC)
-        set(WIN_ABI_FLAGS "")
-        set(S_CRT_STATIC "/MT")
-        set(MSVC_OPT "/O1")
-    else()
-        set(WIN_ABI_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")
-        set(S_CRT_STATIC "")
-        set(MSVC_OPT ${OPTIMIZE_FLAGS})
-    endif()
+    # Настройки только для MSVC (MinGW дропнут)
+    set(S_CRT_STATIC "/MT")
+    set(MSVC_OPT "/O1")
 
     add_executable(Updater WIN32)
-    target_compile_options(Updater PRIVATE ${MSVC_OPT} ${WIN_ABI_FLAGS})
-    if(MSVC)
-        target_compile_options(Updater PRIVATE ${S_CRT_STATIC})
-    else()
-        target_link_libraries(Updater PRIVATE
-            -static
-            -static-libgcc
-            -static-libstdc++
-        )
-    endif()
+    target_compile_options(Updater PRIVATE ${MSVC_OPT} ${S_CRT_STATIC})
     target_sources(Updater PRIVATE
        src/windows/updater.cpp
        src/windows/bootstrap.cpp
        src/windows/updater_res.rc
     )
-    # Добавляем инклуды WebView2 для Updater, чтобы bootstrap.cpp мог найти WebView2.h
-    target_include_directories(Updater PRIVATE
-        "${CMAKE_BINARY_DIR}/_deps/webview-src/core/include"
-        "${CMAKE_BINARY_DIR}/_deps/webview-src/core/src"
-    )
+    # Линкуем с webview::core, чтобы автоматически получить все пути к WebView2.h и зависимости
+    target_link_libraries(Updater PRIVATE webview::core)
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
-    target_compile_options(launcher PRIVATE ${MSVC_OPT} ${WIN_ABI_FLAGS})
-    if(MSVC)
-        target_compile_options(launcher PRIVATE ${S_CRT_STATIC})
-    endif()
+    target_compile_options(launcher PRIVATE ${MSVC_OPT} ${S_CRT_STATIC})
     target_link_options(launcher PRIVATE ${LINK_OPTIMIZE_FLAGS})
     target_sources(launcher PRIVATE
         src/windows/dll_main.cpp
         src/shared/core.cpp
     )
-
-    if (MSVC)
-        target_link_libraries(launcher PRIVATE webview::core)
-    else()
-        target_link_libraries(launcher PRIVATE
-            webview::core
-            -Wl,-Bstatic
-            stdc++
-            gcc
-            winpthread
-            -Wl,-Bdynamic
-        )
-    endif()
-
-    if (NOT MSVC)
-        target_include_directories(launcher SYSTEM PRIVATE
-            "${CMAKE_BINARY_DIR}/_deps/webview-src/compatibility/mingw/include"
-        )
-    endif()
+    target_link_libraries(launcher PRIVATE webview::core)
 else()
 	add_executable(launcher)
 	target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS})
