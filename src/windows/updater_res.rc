@@ -32,7 +32,7 @@ STYLE WS_POPUP | WS_CLIPSIBLINGS | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
 FONT 9, "Segoe UI"
 {
-    CONTROL ID_PROGRESS_BAR, "msctls_progress32", "msctls_progress32", SBS_SMOOTH, WS_CHILD, 0, 16, 192, 12
+    CONTROL ID_PROGRESS_BAR, "msctls_progress32", "msctls_progress32", WS_CHILD, 0, 16, 192, 12
     LTEXT ID_STATUS_LABEL, "Initializing...", SS_CENTER, 17, 6, 154, 8
 }
 
