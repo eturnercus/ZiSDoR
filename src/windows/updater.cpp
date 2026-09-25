@@ -1,17 +1,25 @@
 #include <windows.h>
-#include <iostream>
 #include "launcher.hpp"
 #include "../shared/debug.hpp"
-
+#include "bootstrap.hpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     LOG_DEBUG("[Updater] Starting...");
+
+    LOG_DEBUG("[Updater] Checking if webview2 is installed...");
+    if (!bootstrap::isWebView2Installed()) {
+        LOG_DEBUG("[Updater] Not installed.");
+	MessageBoxW(NULL, L"Лаунчер требует Webview2 для работы. Установить?", L"Webview2", 
+	    MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON1);
+	return 1;
+    } else LOG_DEBUG("[Updater] Installed."); 
 
     LOG_DEBUG("[Updater] Loading launcher.dll...");
     HMODULE hDll = LoadLibraryA("launcher.dll");
     if (!hDll) {
         LOG_DEBUG("[Updater] Error: Could not load launcher.dll");
-        MessageBoxA(NULL, "Could not load launcher.dll", "Error", MB_ICONERROR);
+	// В финальной версии мы должны будем скачивать ДЛЛ, если не найдём.
+        MessageBoxW(NULL, L"launcher.dll не найден.", L"Ошибка", MB_ICONERROR);
         return 1;
     }
 
@@ -25,7 +33,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     if (!RunApp) {
         LOG_DEBUG("[Updater] Error: Could not find RunApp in launcher.dll");
-        MessageBoxA(NULL, "Could not find RunApp in launcher.dll", "Error", MB_ICONERROR);
+        MessageBoxW(NULL, L"launcher.dll повреждён.", L"Ошибка", MB_ICONERROR);
         FreeLibrary(hDll);
         return 1;
     }
