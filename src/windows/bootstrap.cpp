@@ -3,6 +3,7 @@
 #include <urlmon.h>
 #include "WebView2.h"
 #include "bootstrap.hpp"
+#include <winreg.h>
 
 #ifdef MSVC
 #pragma comment(lib, "urlmon.lib")
@@ -11,34 +12,48 @@
 
 /// \brief Функция для проверки наличия WebView2
 bool bootstrap::isWebView2Installed() {
-      // Динамически загружаем WebView2Loader.dll, чтобы полностью исключить
-      // зависимость от WebView2Loader.lib на этапе линковки (решаем LNK2019)
-      HMODULE hModule = LoadLibraryA("WebView2Loader.dll");
-      if (!hModule) {
-              return false;
-      }
+    // GUID из официальной документации MS для WebView2 Runtime
+    const wchar_t* guid = L"{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
 
-      // Определяем тип функции, которую мы будем искать в DLL
-      typedef HRESULT (WINAPI *GetVersionFunc)(LPWSTR*);
-      auto GetAvailableCoreWebView2BrowserVersionString = (GetVersionFunc)GetProcAddress(hModule, "GetAvailableCoreWebView2BrowserVersionString");
+    // Формируем пути для 64-битной и 32-битной систем
+    // Для 64-бит в HKLM смотрим в WOW6432Node
+    const wchar_t* paths[] = {
+        L"SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\" , // HKLM 64-bit
+        L"SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\"               // HKLM 32-bit / HKCU
+    };
 
-      if (!GetAvailableCoreWebView2BrowserVersionString) {
-              FreeLibrary(hModule);
-              return false;
-      }
+    auto checkKey = [&](HKEY root, const wchar_t* basePath) -> bool {
+        HKEY hKey;
+        std::wstring fullPath = std::wstring(basePath) + guid;
 
-      LPWSTR versionInfo = nullptr;
-      // Вызываем функцию из загруженной DLL
-      HRESULT hr = GetAvailableCoreWebView2BrowserVersionString(&versionInfo);
+        if (RegOpenKeyExW(root, fullPath.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            wchar_t version[256];
+            DWORD size = sizeof(version);
 
-      if (SUCCEEDED(hr) && versionInfo != nullptr) {
-              CoTaskMemFree(versionInfo);
-              FreeLibrary(hModule);
-              return true;
-      }
+            // Ищем параметр "pv" (Product Version)
+            if (RegQueryValueExW(hKey, L"pv", NULL, NULL, (LPBYTE)version, &size) == ERROR_SUCCESS) {
+                version[size / sizeof(wchar_t)] = L'\0'; // Гарантируем null-termination
 
-      FreeLibrary(hModule);
-      return false;
+                // Проверяем, что версия не пустая и не "0.0.0.0"
+                if (size > 0 && wcslen(version) > 0 && std::wstring(version) != L"0.0.0.0") {
+                    RegCloseKey(hKey);
+                    return true;
+                }
+            }
+            RegCloseKey(hKey);
+        }
+        return false;
+    };
+
+    // 1. Проверяем HKLM (сначала WOW6432Node, потом обычный путь)
+    for (const auto& path : paths) {
+        if (checkKey(HKEY_LOCAL_MACHINE, path)) return true;
+    }
+
+    // 2. Проверяем HKCU (всегда обычный путь)
+    if (checkKey(HKEY_CURRENT_USER, L"Softwarents\\")) return true;
+
+    return false;
 }
 
 /// \brief Функа для скачивания WebView2. При удаче вернет путь, в ином случае ничего.
