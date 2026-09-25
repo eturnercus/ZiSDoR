@@ -1,9 +1,10 @@
-// launcher_res.rc
+// updater_res.rc
 // Этот файл был автоматически создан RisohEditor 6.2.1.
 // † <-- Этот крестик помогает определять UTF-8.
 //////////////////////////////////////////////////////////////////////////////
 // Сгенерировано из TEXTINCLUDE 1
 
+#include "resource.h"
 
 //////////////////////////////////////////////////////////////////////////////
 // Сгенерировано из TEXTINCLUDE 2
@@ -31,8 +32,8 @@ STYLE WS_POPUPWINDOW | NOT WS_DLGFRAME
 EXSTYLE WS_EX_PALETTEWINDOW
 FONT 9, "MS Shell Dlg"
 {
-    CONTROL "LOADING_BAR", -1, "msctls_progress32", 0, 16, 19, 192, 12
-    LTEXT "LABEL", -1, 17, 6, 154, 8
+    CONTROL ID_PROGRESS_BAR, -1, "msctls_progress32", 0, 16, 19, 192, 12
+    LTEXT ID_STATUS_LABEL, -1, 17, 6, 154, 8
 }
 
 //////////////////////////////////////////////////////////////////////////////

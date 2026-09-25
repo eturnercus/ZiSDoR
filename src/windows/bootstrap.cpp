@@ -1,4 +1,6 @@
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <vector>
 #include <windows.h>
 #include <urlmon.h>
@@ -68,7 +70,7 @@ std::optional<fs::path> bootstrap::downloadWebView2() {
 	try {
 		// Ссылка на скачивания взята с официального сайта майков и данный способ загрузки является рекомендованным.
 		const wchar_t* url = L"https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-
+		
 		fs::path downloadPath = fs::temp_directory_path();
 
 		if (!fs::exists(downloadPath)) return {};
@@ -81,8 +83,37 @@ std::optional<fs::path> bootstrap::downloadWebView2() {
 			return downloadPath;
 		}
 	}
-	catch (...) {
-		// Ловим всяческие ошибки фс.
+	catch (std::runtime_error& e) {
+		throw e;
 	}
 	return std::nullopt;
+}
+
+/// \brief Функция установки Webview2
+bool bootstrap::installWebView2(fs::path filePath) {
+	std::wstring commandLine = L"\"" + filePath.wstring() + L"\" /silent /install";
+
+	STARTUPINFOW si;
+	PROCESS_INFORMATION pi;
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	wchar_t cmdBuffer[MAX_PATH*2];
+	wcscpy_s(cmdBuffer, commandLine.c_str());
+
+	if (!CreateProcessW(NULL, cmdBuffer, NULL, NULL, false, 0, NULL, NULL, &si, &pi)) {
+		throw std::runtime_error("Ошибка запуска установщика!");
+	}
+
+	WaitForSingleObject(pi.hProcess, INFINITE);
+
+	DWORD exitCode = 0;
+	GetExitCodeProcess(pi.hProcess, &exitCode);
+
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+
+	return (exitCode == 0);
 }
