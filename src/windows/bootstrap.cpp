@@ -1,9 +1,11 @@
 #include <optional>
+#include <vector>
 #include <windows.h>
 #include <urlmon.h>
 #include "WebView2.h"
 #include "bootstrap.hpp"
 #include <winreg.h>
+#include "../shared/debug.hpp"
 
 #ifdef MSVC
 #pragma comment(lib, "urlmon.lib")
@@ -12,46 +14,51 @@
 
 /// \brief Функция для проверки наличия WebView2
 bool bootstrap::isWebView2Installed() {
-    // GUID из официальной документации MS для WebView2 Runtime
     const wchar_t* guid = L"{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
 
-    // Формируем пути для 64-битной и 32-битной систем
-    // Для 64-бит в HKLM смотрим в WOW6432Node
-    const wchar_t* paths[] = {
-        L"SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\" , // HKLM 64-bit
-        L"SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\"               // HKLM 32-bit / HKCU
+    struct RegistryCheck {
+        HKEY root;
+        const wchar_t* path;
+        const char* label;
     };
 
-    auto checkKey = [&](HKEY root, const wchar_t* basePath) -> bool {
-        HKEY hKey;
-        std::wstring fullPath = std::wstring(basePath) + guid;
+    std::vector<RegistryCheck> checks = {
+        {HKEY_LOCAL_MACHINE, L"SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\", "HKLM WOW6432Node"},
+        {HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\", "HKLM Standard"},
+        {HKEY_CURRENT_USER, L"Software\\Microsoft\\EdgeUpdate\\Clients\\", "HKCU"}
+    };
 
-        if (RegOpenKeyExW(root, fullPath.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+    for (const auto& check : checks) {
+        HKEY hKey;
+        std::wstring fullPath = std::wstring(check.path) + guid;
+
+        LOG_DEBUG((std::string("[WebView2Check] Trying: ") + check.label).c_str());
+
+        if (RegOpenKeyExW(check.root, fullPath.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
             wchar_t version[256];
             DWORD size = sizeof(version);
 
-            // Ищем параметр "pv" (Product Version)
             if (RegQueryValueExW(hKey, L"pv", NULL, NULL, (LPBYTE)version, &size) == ERROR_SUCCESS) {
-                version[size / sizeof(wchar_t)] = L'\0'; // Гарантируем null-termination
+                version[size / sizeof(wchar_t)] = L'\0';
+                std::wstring vStr(version);
 
-                // Проверяем, что версия не пустая и не "0.0.0.0"
-                if (size > 0 && wcslen(version) > 0 && std::wstring(version) != L"0.0.0.0") {
+                // Логируем найденную версию
+                char buf[256];
+                sprintf_s(buf, "[WebView2Check] Found version: %ls", version);
+                LOG_DEBUG(buf);
+
+                if (vStr.length() > 0 && vStr != L"0.0.0.0") {
                     RegCloseKey(hKey);
                     return true;
                 }
+            } else {
+                LOG_DEBUG((std::string("[WebView2Check] Key found, but 'pv' value missing in ") + check.label).c_str());
             }
             RegCloseKey(hKey);
+        } else {
+            LOG_DEBUG((std::string("[WebView2Check] Key not found in ") + check.label).c_str());
         }
-        return false;
-    };
-
-    // 1. Проверяем HKLM (сначала WOW6432Node, потом обычный путь)
-    for (const auto& path : paths) {
-        if (checkKey(HKEY_LOCAL_MACHINE, path)) return true;
     }
-
-    // 2. Проверяем HKCU (всегда обычный путь)
-    if (checkKey(HKEY_CURRENT_USER, L"Softwarents\\")) return true;
 
     return false;
 }
