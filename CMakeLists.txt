@@ -59,6 +59,7 @@ if (WIN32)
     endif()
     target_sources(Updater PRIVATE
        src/windows/updater.cpp
+       src/windows/bootstrap.cpp
        src/windows/updater_res.rc
     )
 
