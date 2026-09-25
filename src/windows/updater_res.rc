@@ -26,13 +26,14 @@ LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
 //////////////////////////////////////////////////////////////////////////////
 // RT_DIALOG
 
-101 DIALOG 0, 0, 222, 36
+LAUNCHER_DLG DIALOG 0, 0, 222, 36
 CAPTION "Загрузка..."
-STYLE WS_POPUP
-FONT 9, "Segoe UI"
+STYLE WS_POPUPWINDOW | NOT WS_DLGFRAME
+EXSTYLE WS_EX_PALETTEWINDOW
+FONT 9, "MS Shell Dlg"
 {
-    CONTROL 1001, "msctls_progress32", "msctls_progress32", WS_CHILD, 0, 16, 192, 12
-    CONTROLSTATIC 1002, "Initializing...", 17, 6, 154, 8
+    CONTROL "LOADING_BAR", -1, "msctls_progress32", 0, 16, 192, 12
+    LTEXT "LABEL", -1, 17, 6, 154, 8
 }
 
 //////////////////////////////////////////////////////////////////////////////
