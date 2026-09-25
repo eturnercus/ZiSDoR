@@ -32,8 +32,8 @@ STYLE WS_POPUPWINDOW | NOT WS_DLGFRAME
 EXSTYLE WS_EX_PALETTEWINDOW
 FONT 9, "MS Shell Dlg"
 {
-    CONTROL "LOADING_BAR", -1, "msctls_progress32", 0, 16, 192, 12
-    LTEXT "LABEL", -1, 17, 6, 154, 8
+    CONTROL 1001, "msctls_progress32", "msctls_progress32", WS_CHILD, 0, 16, 192, 12
+    LTEXT 1002, "Initializing...", SS_CENTER, 17, 6, 154, 8
 }
 
 //////////////////////////////////////////////////////////////////////////////
