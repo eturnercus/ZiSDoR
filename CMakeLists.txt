@@ -57,6 +57,7 @@ if (WIN32)
        src/windows/updater.cpp
        src/windows/bootstrap.cpp
        src/windows/updater_res.rc
+       src/windows/ui.manifest
     )
     # Линкуем с webview::core, системными либами и найденным WebView2Loader
     target_link_libraries(Updater PRIVATE webview::core urlmon user32 shell32 shlwapi)
