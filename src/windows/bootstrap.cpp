@@ -10,19 +10,35 @@
 #endif
 
 /// \brief Функция для проверки наличия WebView2
-/// Берет страшную длинную функцию с противными параметрами и оборачивает её в красивую обёртку.
 bool bootstrap::isWebView2Installed() {
-	LPWSTR versionInfo = nullptr;
+      // Динамически загружаем WebView2Loader.dll, чтобы полностью исключить
+      // зависимость от WebView2Loader.lib на этапе линковки (решаем LNK2019)
+      HMODULE hModule = LoadLibraryA("WebView2Loader.dll");
+      if (!hModule) {
+              return false;
+      }
 
-	// ХИХОЗ СУКА)))
-	HRESULT hr = GetAvailableCoreWebView2BrowserVersionString(nullptr, &versionInfo);
+      // Определяем тип функции, которую мы будем искать в DLL
+      typedef HRESULT (WINAPI *GetVersionFunc)(LPWSTR*);
+      auto GetAvailableCoreWebView2BrowserVersionString = (GetVersionFunc)GetProcAddress(hModule, "GetAvailableCoreWebView2BrowserVersionString");
 
-	if (SUCCEEDED(hr) && versionInfo != nullptr) {
-		CoTaskMemFree(versionInfo);
-		return true;
-	}
-	
-	return false;
+      if (!GetAvailableCoreWebView2BrowserVersionString) {
+              FreeLibrary(hModule);
+              return false;
+      }
+
+      LPWSTR versionInfo = nullptr;
+      // Вызываем функцию из загруженной DLL
+      HRESULT hr = GetAvailableCoreWebView2BrowserVersionString(&versionInfo);
+
+      if (SUCCEEDED(hr) && versionInfo != nullptr) {
+              CoTaskMemFree(versionInfo);
+              FreeLibrary(hModule);
+              return true;
+      }
+
+      FreeLibrary(hModule);
+      return false;
 }
 
 /// \brief Функа для скачивания WebView2. При удаче вернет путь, в ином случае ничего.
