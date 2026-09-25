@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(GDZLauncher LANGUAGES CXX)
 
+# Устанавливаем стандарт C++17 для всего проекта
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
 set(CMAKE_C_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
 
@@ -61,6 +66,11 @@ if (WIN32)
        src/windows/updater.cpp
        src/windows/bootstrap.cpp
        src/windows/updater_res.rc
+    )
+    # Добавляем инклуды WebView2 для Updater, чтобы bootstrap.cpp мог найти WebView2.h
+    target_include_directories(Updater PRIVATE
+        "${CMAKE_BINARY_DIR}/_deps/webview-src/core/include"
+        "${CMAKE_BINARY_DIR}/_deps/webview-src/core/src"
     )
 
     add_library(launcher SHARED)
