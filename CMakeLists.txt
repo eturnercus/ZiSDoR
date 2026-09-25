@@ -49,7 +49,7 @@ if (WIN32)
        src/windows/updater_res.rc
     )
     # Линкуем с webview::core, чтобы автоматически получить все пути к WebView2.h и зависимости
-    target_link_libraries(Updater PRIVATE webview::core urlmon user32 WebView2Loader)
+    target_link_libraries(Updater PRIVATE webview::core urlmon user32 shell32 shlwapi)
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
