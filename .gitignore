@@ -4,3 +4,4 @@ build_linux/
 .cache/
 ycm_fixes/
 compile_commands.json
+*~

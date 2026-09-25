@@ -51,7 +51,7 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
         case WM_UPDATE_UI: {
             // Обновляем статус в диалоге
             #ifdef ID_STATUS_LABEL
-            SetWindowTextA(GetDlgItem(hDlg, ID_STATUS_LABEL), g_state.statusText.c_str());
+            SetWindowTextW(GetDlgItem(hDlg, ID_STATUS_LABEL), (LPCWSTR)g_state.statusText.c_str());
             #endif
             return (INT_PTR)TRUE;
         }
