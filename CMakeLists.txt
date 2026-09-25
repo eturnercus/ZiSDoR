@@ -41,6 +41,15 @@ if (WIN32)
     set(S_CRT_STATIC "/MT")
     set(MSVC_OPT "/O1")
 
+    # Поиск WebView2Loader в папках FetchContent
+    find_library(WEBVIEW2_LOADER_LIB
+        NAMES WebView2Loader
+        PATHS
+            "${CMAKE_BINARY_DIR}/_deps/webview-src/core/WebView2/x64"
+            "${CMAKE_BINARY_DIR}/_deps/webview-src/core/WebView2/x86"
+            "${CMAKE_BINARY_DIR}/_deps/webview-src/core"
+    )
+
     add_executable(Updater WIN32)
     target_compile_options(Updater PRIVATE ${MSVC_OPT} ${S_CRT_STATIC})
     target_sources(Updater PRIVATE
@@ -48,8 +57,12 @@ if (WIN32)
        src/windows/bootstrap.cpp
        src/windows/updater_res.rc
     )
-    # Линкуем с webview::core, чтобы автоматически получить все пути к WebView2.h и зависимости
+    # Линкуем с webview::core, системными либами и найденным WebView2Loader
     target_link_libraries(Updater PRIVATE webview::core urlmon user32 shell32 shlwapi)
+    if(WEBVIEW2_LOADER_LIB)
+        target_link_libraries(Updater PRIVATE ${WEBVIEW2_LOADER_LIB})
+    endif()
+
 
     add_library(launcher SHARED)
     target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
