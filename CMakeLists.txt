@@ -37,6 +37,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(webview)
 
 if (WIN32)
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
     # Настройки только для MSVC (MinGW дропнут)
     set(S_CRT_STATIC "/MT")
     set(MSVC_OPT "/O1")
