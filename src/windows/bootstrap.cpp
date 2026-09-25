@@ -4,6 +4,11 @@
 #include "WebView2.h"
 #include "bootstrap.hpp"
 
+#ifdef MSVC
+#pragma comment(lib, "urlmon.lib")
+#pragma comment(lib, "WebView2Loader.lib")
+#endif
+
 /// \brief Функция для проверки наличия WebView2
 /// Берет страшную длинную функцию с противными параметрами и оборачивает её в красивую обёртку.
 bool bootstrap::isWebView2Installed() {
