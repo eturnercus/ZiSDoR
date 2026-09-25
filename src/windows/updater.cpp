@@ -29,11 +29,19 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
     switch (message) {
         case WM_INITDIALOG: {
             g_state.hDlg = hDlg;
-            // В .rc CONTROL "LOADING_BAR" имеет ID -1, но обычно в resource.h определены константы.
-            // Если ID_PROGRESS_BAR не определен, придется искать по индексу или заменить в .rc.
+
             #ifdef ID_PROGRESS_BAR
             g_state.hProgressBar = GetDlgItem(hDlg, ID_PROGRESS_BAR);
             #endif
+
+            // Центрируем окно по экрану
+            RECT rc;
+            GetWindowRect(hDlg, &rc);
+            int screenW = GetSystemMetrics(SM_CXSCREEN);
+            int screenH = GetSystemMetrics(SM_CYSCREEN);
+            int x = (screenW - (rc.right - rc.left)) / 2;
+            int y = (screenH - (rc.bottom - rc.top)) / 2;
+            SetWindowPos(hDlg, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
             // Запускаем поток логики
             std::thread(WorkerThread).detach();
