@@ -30,9 +30,7 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
         case WM_INITDIALOG: {
             g_state.hDlg = hDlg;
 
-            #ifdef ID_PROGRESS_BAR
             g_state.hProgressBar = GetDlgItem(hDlg, ID_PROGRESS_BAR);
-            #endif
 
             // Центрируем окно по экрану
             RECT rc;
@@ -57,11 +55,12 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
             break;
         }
         case WM_UPDATE_UI: {
-            // Обновляем статус в диалоге
-            #ifdef ID_STATUS_LABEL
-            SetWindowTextW(GetDlgItem(hDlg, ID_STATUS_LABEL), (LPCWSTR)g_state.statusText.c_str());
-            #endif
-            return (INT_PTR)TRUE;
+		int size_needed = MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, NULL, 0);
+		std::wstring wstrTo(size_needed, 0);
+		MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, &wstrTo[0], size_needed);
+
+        	SetWindowTextW(GetDlgItem(hDlg, ID_STATUS_LABEL), wstrTo.c_str());
+        	return (INT_PTR)TRUE;
         }
     }
     return (INT_PTR)FALSE;
