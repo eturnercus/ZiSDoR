@@ -30,7 +30,17 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
         case WM_INITDIALOG: {
             g_state.hDlg = hDlg;
 
+            #ifdef ID_PROGRESS_BAR
             g_state.hProgressBar = GetDlgItem(hDlg, ID_PROGRESS_BAR);
+            #endif
+
+            // Настраиваем EDIT, чтобы он выглядел как обычный текст (без рамок и с фоном диалога)
+            HWND hLabel = GetDlgItem(hDlg, ID_STATUS_LABEL);
+            if (hLabel) {
+                SetWindowLongPtr(hLabel, GWL_STYLE, GetWindowLongPtr(hLabel, GWL_STYLE) & ~WS_BORDER);
+                HBRUSH hbrBkg = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
+                SetClassLongPtr(hLabel, GCLP_HBRBACKGROUND, (LONG_PTR)hbrBkg);
+            }
 
             // Центрируем окно по экрану
             RECT rc;
@@ -54,7 +64,7 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
             }
             break;
         }
-	case WM_UPDATE_UI: {
+        case WM_UPDATE_UI: {
             int size_needed = MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, NULL, 0);
             std::wstring wstrTo(size_needed, 0);
             MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, &wstrTo[0], size_needed);
