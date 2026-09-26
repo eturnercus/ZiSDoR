@@ -34,7 +34,8 @@ FONT 9, "Segoe UI"
 {
     LTEXT L"Проверка обновлений...", 1002,
           WS_CHILD | WS_VISIBLE | SS_CENTER,
-          20, 12, 220, 12
+          10, 12, 240, 12
+
 
 
     CONTROL "", 1001, PROGRESS_CLASS,

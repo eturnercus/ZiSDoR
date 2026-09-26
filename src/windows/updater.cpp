@@ -54,13 +54,15 @@ INT_PTR CALLBACK UpdaterDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
             }
             break;
         }
-        case WM_UPDATE_UI: {
-		int size_needed = MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, NULL, 0);
-		std::wstring wstrTo(size_needed, 0);
-		MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, &wstrTo[0], size_needed);
+	case WM_UPDATE_UI: {
+            int size_needed = MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, NULL, 0);
+            std::wstring wstrTo(size_needed, 0);
+            MultiByteToWideChar(CP_UTF8, 0, g_state.statusText.c_str(), -1, &wstrTo[0], size_needed);
 
-        	SetWindowTextW(GetDlgItem(hDlg, ID_STATUS_LABEL), wstrTo.c_str());
-        	return (INT_PTR)TRUE;
+            HWND hLabel = GetDlgItem(hDlg, ID_STATUS_LABEL);
+            SetWindowTextW(hLabel, wstrTo.c_str());
+            InvalidateRect(hLabel, NULL, TRUE); // Принудительная перерисовка, чтобы текст не обрезался
+            return (INT_PTR)TRUE;
         }
     }
     return (INT_PTR)FALSE;
@@ -104,13 +106,19 @@ void WorkerThread() {
 		webView2Installer = filePath.value();
 	}
 	catch (std::runtime_error& e) {
-		std::string error_message = e.what();
-		LOG_DEBUG(("[Worker] Error occured during download: "+error_message).c_str());
-		MessageBoxW(g_state.hDlg, (LPCWSTR)e.what(), L"Ошибка при загрузке WebView2.", MB_OK | MB_ICONERROR);
-		g_state.isRunning = false;
-		PostMessage(g_state.hDlg, WM_CLOSE, 0, 0);
-		return;
-	}
+		    std::string error_message = e.what();
+		    LOG_DEBUG(("[Worker] Error occured: " + error_message).c_str());
+
+		    // Безопасная конвертация UTF-8 -> UTF-16 для MessageBoxW
+		    int size = MultiByteToWideChar(CP_UTF8, 0, error_message.c_str(), -1, NULL, 0);
+		    std::wstring werr(size, 0);
+		    MultiByteToWideChar(CP_UTF8, 0, error_message.c_str(), -1, &werr[0], size);
+
+		    MessageBoxW(g_state.hDlg, werr.c_str(), L"Ошибка", MB_OK | MB_ICONERROR);
+		    g_state.isRunning = false;
+		    PostMessage(g_state.hDlg, WM_CLOSE, 0, 0);
+           	    return;
+        }
 
 	LOG_DEBUG("[Worker] Installing WebView2.....");
 	g_state.statusText = "Установка WebView2...";
@@ -129,13 +137,19 @@ void WorkerThread() {
 		MessageBoxW(g_state.hDlg, L"Установка WebView2 завершена.", L"WebView2", MB_OK | MB_ICONINFORMATION);
 	}
 	catch (std::runtime_error& e) {
-		std::string error_message = e.what();
-		LOG_DEBUG(("[Worker] Error occured during install: "+error_message).c_str());
-		MessageBoxW(g_state.hDlg, (LPCWSTR)e.what(), L"Ошибка при установке WebView2.", MB_OK | MB_ICONERROR);
-		g_state.isRunning = false;
-		PostMessage(g_state.hDlg, WM_CLOSE, 0, 0);
-		return;
-	} 
+		    std::string error_message = e.what();
+		    LOG_DEBUG(("[Worker] Error occured: " + error_message).c_str());
+
+		    // Безопасная конвертация UTF-8 -> UTF-16 для MessageBoxW
+		    int size = MultiByteToWideChar(CP_UTF8, 0, error_message.c_str(), -1, NULL, 0);
+		    std::wstring werr(size, 0);
+		    MultiByteToWideChar(CP_UTF8, 0, error_message.c_str(), -1, &werr[0], size);
+
+		    MessageBoxW(g_state.hDlg, werr.c_str(), L"Ошибка", MB_OK | MB_ICONERROR);
+		    g_state.isRunning = false;
+		    PostMessage(g_state.hDlg, WM_CLOSE, 0, 0);
+           	    return;
+        }
     }
 
     // 2. Загрузка DLL
