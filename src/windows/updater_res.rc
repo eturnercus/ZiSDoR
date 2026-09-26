@@ -27,14 +27,15 @@ LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
 // RT_DIALOG
 
 LAUNCHER_DLG DIALOGEX 0, 0, 260, 72
-CAPTION "Обновление"
+CAPTION L"Обновление"
 STYLE WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_DLGMODALFRAME
 FONT 9, "Segoe UI"
 {
-    LTEXT "Проверка обновлений...", 1002,
+    LTEXT L"Проверка обновлений...", 1002,
           WS_CHILD | WS_VISIBLE | SS_CENTER,
           20, 12, 220, 12
+
 
     CONTROL "", 1001, PROGRESS_CLASS,
           WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
@@ -46,8 +47,8 @@ FONT 9, "Segoe UI"
 
 STRINGTABLE
 {
-    100 "Загрузка..."
-    101 "Обновление..."
+    100 L"Загрузка..."
+    101 L"Обновление..."
 }
 
 //////////////////////////////////////////////////////////////////////////////
