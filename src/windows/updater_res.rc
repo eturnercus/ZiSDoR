@@ -13,6 +13,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <richedit.h>
+#include <winver.h>
 #undef APSTUDIO_HIDDEN_SYMBOLS
 
 //////////////////////////////////////////////////////////////////////////////
@@ -32,13 +33,52 @@ STYLE WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_DLGMODALFRAME
 FONT 9, "Segoe UI"
 {
-    CONTROL 1002, "", "EDIT", ES_READONLY | ES_CENTER | WS_CHILD | WS_VISIBLE, 10, 12, 240, 12
+    // Формат CONTROL: текст, идентификатор, класс, стиль, x, y, ширина, высота.
+    // Статусная строка: STATIC вместо EDIT, поэтому не нужно снимать рамку и подменять кисть класса из кода.
+    CONTROL "", ID_STATUS_LABEL, "STATIC", SS_CENTER | WS_CHILD | WS_VISIBLE, 10, 12, 240, 12
 
-
-
-    CONTROL "", 1001, PROGRESS_CLASS,
+    CONTROL "", ID_PROGRESS_BAR, "msctls_progress32",
           WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
           20, 36, 220, 8
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_MANIFEST (только MinGW: MSVC встраивает манифест из ui.manifest сам)
+
+#ifdef GDZ_EMBED_MANIFEST
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "ui.manifest"
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+// VERSIONINFO
+// Держите номер версии в синхроне с project(GDZLauncher VERSION ...) в CMakeLists.txt.
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 0,2,0,0
+PRODUCTVERSION 0,2,0,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "041904B0"
+        {
+            VALUE "CompanyName", "GDZLauncher"
+            VALUE "FileDescription", "GDZLauncher: загрузчик"
+            VALUE "FileVersion", "0.2.0.0"
+            VALUE "InternalName", "Updater"
+            VALUE "OriginalFilename", "Updater.exe"
+            VALUE "ProductName", "GDZLauncher"
+            VALUE "ProductVersion", "0.2.0.0"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x0419, 1200
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<!-- Страница получает доступ к привязкам C++, поэтому запрещаем загрузку чего-либо снаружи. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>GDZLauncher</title>
+<style>
+:root {
+  --bg: #07050b;
+  --rail: #050308;
+  --surface: #0f0a16;
+  --surface-2: #161020;
+  --surface-3: #21182f;
+  --line: rgba(176, 140, 255, 0.10);
+  --line-2: rgba(176, 140, 255, 0.20);
+  --text: #ece6f3;
+  --muted: #9f94b3;
+  --faint: #675d7a;
+  --paper: #efe5cf;
+  --accent: #6a2bd6;
+  --accent-hi: #8f5cf0;
+  --accent-lo: #3d1680;
+  --ok: #7ee2a1;
+  --warn: #f2c14e;
+  --danger: #ff6b6b;
+  --font: "Segoe UI", "Noto Sans", Roboto, system-ui, sans-serif;
+  --cond: "Bahnschrift", "Roboto Condensed", "Arial Narrow", "DejaVu Sans Condensed", "Noto Sans", sans-serif;
+  --mono: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg);
+  overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none;
+}
+/* Зерно поверх всего интерфейса: «печатная» фактура плаката */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: 0.07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+input, button { font: inherit; color: inherit; }
+input { user-select: text; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 88px 1fr; height: 100%; }
+
+/* ---------- Боковая панель ---------- */
+.rail {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 0 14px;
+  background: var(--rail); border-right: 1px solid var(--line); z-index: 3; position: relative;
+}
+.rail::after { content: ""; position: absolute; right: -1px; top: 0; width: 3px; height: 120px; background: var(--accent); }
+.emblem { width: 56px; height: 56px; margin-bottom: 18px; display: grid; place-items: center; background: var(--accent); box-shadow: 4px 4px 0 var(--accent-lo); }
+.emblem svg { width: 40px; height: 40px; }
+.nav {
+  position: relative; width: 76px; padding: 11px 0 9px; border: 0;
+  background: transparent; color: var(--faint);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-family: var(--cond); font-stretch: condensed; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  transition: color 0.12s, background 0.12s;
+}
+.nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; }
+.nav:hover { color: var(--text); background: rgba(176, 140, 255, 0.06); }
+.nav[aria-current="page"] { color: #fff; background: rgba(106, 43, 214, 0.22); }
+.nav[aria-current="page"]::before { content: ""; position: absolute; left: -6px; top: 0; bottom: 0; width: 4px; background: var(--accent-hi); }
+.rail-foot { margin-top: auto; text-align: center; font-family: var(--mono); font-size: 10.5px; color: var(--faint); line-height: 1.5; }
+.rail-foot i { display: block; width: 8px; height: 8px; background: var(--ok); margin: 0 auto 6px; }
+
+/* ---------- Страницы ---------- */
+.main { position: relative; min-width: 0; overflow: hidden; }
+.page { position: absolute; inset: 0; display: none; }
+.page.active { display: block; animation: fade 0.22s ease both; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.scroll { position: absolute; inset: 0; overflow-y: auto; padding: 32px 40px 40px; }
+.scroll::-webkit-scrollbar { width: 10px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--surface-3); border: 3px solid var(--bg); }
+
+/* ---------- Баннер обновления ---------- */
+.update {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: none; align-items: center; gap: 14px;
+  padding: 9px 16px 9px 20px; background: var(--paper); color: #140c22; border-bottom: 3px solid #140c22;
+  font-family: var(--cond); font-stretch: condensed; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 14px;
+}
+.update.show { display: flex; }
+.update b { background: #140c22; color: var(--paper); padding: 2px 8px; }
+.update .sp { flex: 1; }
+.update button { height: 30px; padding: 0 14px; border: 2px solid #140c22; background: #140c22; color: var(--paper); font-family: var(--cond); font-stretch: condensed; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.update button:hover { background: var(--accent); border-color: var(--accent); }
+.update button.ghost { background: transparent; color: #140c22; }
+.update button.ghost:hover { background: rgba(20, 12, 34, 0.1); color: #140c22; border-color: #140c22; }
+
+/* ---------- Главная: сцена ---------- */
+.scene { position: absolute; inset: 0; overflow: hidden; background: #09060f; }
+.scene svg { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.beam { animation: sweep 11s ease-in-out infinite alternate; }
+.beam.b2 { animation-duration: 14s; animation-delay: -5s; }
+@keyframes sweep { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
+.windows rect { animation: flicker 7s steps(1) infinite; }
+@keyframes flicker { 0%, 100% { opacity: 1; } 47% { opacity: 1; } 48% { opacity: 0.25; } 52% { opacity: 1; } }
+.scene::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(7, 5, 11, 0.96) 0%, rgba(7, 5, 11, 0.7) 34%, rgba(7, 5, 11, 0) 62%),
+    linear-gradient(0deg, rgba(7, 5, 11, 1) 0%, rgba(7, 5, 11, 0.8) 17%, rgba(7, 5, 11, 0) 42%);
+}
+
+.home { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px; grid-template-rows: 1fr auto; }
+.hero { grid-column: 1; align-self: center; padding: 30px 30px 0 44px; max-width: 640px; position: relative; }
+.directive {
+  display: inline-flex; align-items: stretch; font-family: var(--cond); font-stretch: condensed; font-weight: 700;
+  font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; border: 1px solid var(--line-2);
+}
+.directive span { padding: 6px 10px; }
+.directive span:first-child { background: var(--accent); color: #fff; }
+.directive span:last-child { color: var(--paper); background: rgba(15, 10, 22, 0.7); }
+.hero h1 {
+  margin: 20px 0 10px; font-family: var(--cond); font-stretch: condensed; font-weight: 800;
+  font-size: 33px; line-height: 1; letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper);
+}
+/* Никнейм редактируется прямо на главной: крупное поле в виде плашки */
+.nick-edit {
+  position: relative; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
+  background: var(--accent); padding: 4px 16px 0 14px; box-shadow: 6px 6px 0 var(--accent-lo);
+  cursor: text; transition: background 0.1s, box-shadow 0.1s;
+}
+.nick-edit input[type="text"] {
+  border: 0; outline: none; background: transparent; border-radius: 0; box-shadow: none; transition: none; color: #fff; padding: 0; margin: 0;
+  font-family: var(--cond); font-stretch: condensed; font-weight: 800; font-size: 66px; line-height: 1.05;
+  height: 72px; width: 6ch; min-width: 2ch; max-width: 100%; caret-color: var(--paper); user-select: text;
+}
+.nick-edit input[type="text"]:hover, .nick-edit input[type="text"]:focus { border: 0; background: transparent; }
+.nick-edit input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.nick-edit svg { width: 26px; height: 26px; flex: none; fill: none; stroke: rgba(255, 255, 255, 0.5); stroke-width: 2.2; stroke-linecap: square; transition: stroke 0.1s; }
+.nick-edit:hover svg, .nick-edit:focus-within svg { stroke: #fff; }
+.nick-edit:hover { background: #7433e0; }
+.nick-edit:focus-within { background: #7a3ae6; box-shadow: 6px 6px 0 var(--accent-lo), 0 0 0 3px var(--paper); }
+.nick-edit.invalid, .nick-edit.invalid:focus-within { background: #8f2a3a; box-shadow: 6px 6px 0 #4a1019; }
+.nick-note { min-height: 20px; margin: 12px 0 4px; font-size: 13px; color: var(--faint); }
+.nick-note.err { color: var(--danger); }
+.hero p { margin: 0; max-width: 460px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 28px; max-width: 590px; border: 1px solid var(--line-2); background: rgba(15, 10, 22, 0.72); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.tile { text-align: left; padding: 13px 16px 12px; border: 0; background: transparent; border-right: 1px solid var(--line); min-width: 0; transition: background 0.12s; }
+.tile:last-child { border-right: 0; }
+button.tile:hover { background: rgba(106, 43, 214, 0.16); }
+.tile .k { font-family: var(--cond); font-stretch: condensed; font-size: 11.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin-bottom: 5px; }
+.tile .v { font-family: var(--cond); font-stretch: condensed; font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Вестник (новости) ---------- */
+.news { grid-column: 2; align-self: end; margin: 30px 24px 18px 0; background: rgba(12, 8, 18, 0.86); border: 1px solid var(--line-2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); max-height: calc(100% - 60px); display: flex; flex-direction: column; }
+.news-h { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 16px 10px; border-bottom: 3px solid var(--accent); }
+.news-h b { font-family: var(--cond); font-stretch: condensed; font-size: 22px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.news-h span { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.news-list { overflow-y: auto; }
+.news-item { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.news-item:last-child { border-bottom: 0; }
+.news-item .d { font-family: var(--mono); font-size: 11px; color: var(--accent-hi); margin-bottom: 4px; }
+.news-item .t { font-family: var(--cond); font-stretch: condensed; font-weight: 700; font-size: 16.5px; letter-spacing: 0.02em; margin-bottom: 4px; }
+.news-item .x { color: var(--muted); font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.news-empty { padding: 18px 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* ---------- Нижняя панель ---------- */
+.dock {
+  grid-column: 1 / -1; position: relative; margin: 0 24px 22px; min-height: 84px; padding: 12px 12px 12px 14px;
+  display: flex; align-items: center; gap: 16px;
+  background: rgba(12, 8, 18, 0.92); border: 1px solid var(--line-2); border-top: 3px solid var(--accent);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 40px -14px rgba(0, 0, 0, 0.8);
+}
+.profile { display: flex; align-items: center; gap: 14px; min-width: 0; padding-right: 16px; border-right: 1px solid var(--line); flex: none; }
+.avatar { width: 48px; height: 48px; flex: none; background: var(--surface-3); outline: 2px solid var(--accent); outline-offset: 2px; }
+.avatar svg { width: 100%; height: 100%; display: block; shape-rendering: crispEdges; }
+.profile .name { font-family: var(--cond); font-stretch: condensed; font-weight: 800; font-size: 20px; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.profile .sub { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+.mid { flex: 1; min-width: 0; }
+.meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--cond); font-stretch: condensed; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+
+.prog { display: none; }
+.busy .meta { display: none; }
+.busy .prog { display: block; }
+.prog-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.prog-stage { font-family: var(--cond); font-stretch: condensed; font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog-num { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.bar { position: relative; height: 12px; background: var(--surface-3); border: 1px solid var(--line-2); overflow: hidden; }
+.bar i {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 10px, var(--accent-hi) 10px 20px);
+  background-size: 28px 28px; animation: stripes 0.8s linear infinite; transition: width 0.2s;
+}
+.bar.indet i { width: 100% !important; opacity: 0.55; }
+@keyframes stripes { to { background-position: 28px 0; } }
+
+.cancel { height: 40px; padding: 0 14px; border: 1px solid var(--line-2); background: transparent; color: var(--muted); font-family: var(--cond); font-stretch: condensed; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; display: none; flex: none; }
+.cancel:hover { color: var(--text); border-color: var(--danger); }
+.busy .cancel { display: inline-block; }
+
+.play {
+  position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 14px;
+  height: 60px; min-width: 240px; padding: 0 34px; border: 0;
+  background: var(--accent); color: #fff;
+  font-family: var(--cond); font-stretch: condensed; font-size: 26px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+  box-shadow: 6px 6px 0 var(--accent-lo), inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+  transition: transform 0.08s, box-shadow 0.08s, background 0.12s;
+}
+.play svg { width: 22px; height: 22px; fill: #fff; }
+.play:hover { background: #7a3ae6; transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--accent-lo), inset 0 0 0 2px rgba(255, 255, 255, 0.2); }
+.play:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--accent-lo); }
+.play[disabled] { background: var(--surface-3); color: var(--muted); box-shadow: 6px 6px 0 #0c0812; transform: none; cursor: default; }
+.play[disabled] svg { fill: var(--muted); }
+
+/* ---------- Внутренние страницы ---------- */
+.head { margin-bottom: 26px; padding-bottom: 16px; border-bottom: 3px solid var(--accent); display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.head h1 { margin: 0; font-family: var(--cond); font-stretch: condensed; font-size: 44px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; line-height: 0.95; }
+.head .kick { font-family: var(--mono); font-size: 11px; color: var(--accent-hi); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.head p { margin: 0; color: var(--muted); font-size: 13.5px; text-align: right; }
+.wrap { max-width: 860px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); margin-bottom: 14px; }
+.card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.card-h .no { font-family: var(--mono); font-size: 11px; color: #fff; background: var(--accent); padding: 3px 7px; }
+.card-h h2 { margin: 0; font-family: var(--cond); font-stretch: condensed; font-size: 18px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.card-h span:last-child:not(.no) { margin-left: auto; font-size: 12.5px; color: var(--faint); }
+.card-b { padding: 18px 18px 20px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+.field { display: grid; gap: 7px; align-content: start; }
+.field.wide { grid-column: 1 / -1; }
+.field label, .lbl { font-family: var(--cond); font-stretch: condensed; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.field .sub { font-size: 12px; color: var(--faint); }
+.field .err { font-size: 12px; color: var(--danger); min-height: 16px; }
+input[type="text"] {
+  height: 42px; padding: 0 13px; border-radius: 0; outline: none;
+  background: var(--bg); border: 1px solid var(--line-2); border-left: 3px solid var(--accent-lo); font-size: 14px;
+  transition: border-color 0.12s;
+}
+input[type="text"]::placeholder { color: var(--faint); }
+input[type="text"]:hover { border-color: rgba(176, 140, 255, 0.35); border-left-color: var(--accent); }
+input[type="text"]:focus { border-color: var(--accent-hi); border-left-color: var(--accent-hi); }
+input[aria-invalid="true"], input[aria-invalid="true"]:focus { border-color: var(--danger); border-left-color: var(--danger); }
+.row-input { display: flex; gap: 8px; }
+.row-input input { flex: 1; min-width: 0; }
+
+.ram-top { display: flex; align-items: baseline; justify-content: space-between; }
+.ram-val { font-family: var(--cond); font-stretch: condensed; font-size: 30px; font-weight: 800; color: #fff; line-height: 1; }
+.ram-val small { font-size: 15px; color: var(--muted); font-weight: 700; margin-left: 3px; }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 10px; outline: none; margin: 14px 0 6px; cursor: pointer;
+  background: linear-gradient(90deg, var(--accent) var(--fill, 20%), var(--surface-3) var(--fill, 20%));
+}
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 26px; background: var(--paper); border: 0; box-shadow: 3px 3px 0 var(--accent-lo); }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 26px; background: var(--paper); border: 0; border-radius: 0; }
+.ticks { position: relative; height: 16px; font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.ticks span { position: absolute; top: 0; }
+.hint { margin-top: 10px; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.hint i { width: 8px; height: 8px; background: var(--ok); flex: none; }
+.hint.warn i { background: var(--warn); }
+
+.check { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.check input { position: absolute; opacity: 0; pointer-events: none; }
+.check .box { width: 22px; height: 22px; border: 2px solid var(--line-2); background: var(--bg); display: grid; place-items: center; flex: none; }
+.check .box::after { content: ""; width: 10px; height: 10px; background: var(--accent-hi); transform: scale(0); transition: transform 0.1s; }
+.check input:checked + .box { border-color: var(--accent-hi); }
+.check input:checked + .box::after { transform: scale(1); }
+.check input:focus-visible + .box { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.btn { height: 40px; padding: 0 16px; border: 1px solid var(--line-2); background: var(--surface-2); font-family: var(--cond); font-stretch: condensed; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); transition: background 0.12s, border-color 0.12s; flex: none; }
+.btn:hover { background: var(--surface-3); border-color: var(--accent-hi); }
+.btn.danger:hover { border-color: var(--danger); }
+.saved { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); opacity: 0; transition: opacity 0.2s; margin-left: auto; }
+.saved::before { content: ""; width: 8px; height: 8px; background: var(--ok); }
+.saved.bad::before { background: var(--danger); }
+.saved.show { opacity: 1; }
+
+/* ---------- Сведения ---------- */
+.rows { margin: 0; }
+.rows .row { display: grid; grid-template-columns: 190px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px dashed var(--line-2); }
+.rows .row:last-child { border-bottom: 0; padding-bottom: 0; }
+.rows .row:first-child { padding-top: 0; }
+.rows dt { font-family: var(--cond); font-stretch: condensed; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-size: 13px; }
+.rows dd { margin: 0; font-family: var(--mono); font-size: 13px; word-break: break-all; user-select: text; }
+.status { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--cond); font-stretch: condensed; font-weight: 700; font-size: 15px; letter-spacing: 0.04em; }
+.stamp { font-family: var(--cond); font-stretch: condensed; font-size: 11.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 2px solid currentColor; transform: rotate(-3deg); }
+.stamp.ok { color: var(--ok); }
+.stamp.warn { color: var(--warn); }
+.stamp.err { color: var(--danger); }
+
+/* ---------- Уведомления ---------- */
+.toast {
+  position: fixed; right: 24px; bottom: 124px; z-index: 20; display: flex; align-items: flex-start; gap: 12px;
+  max-width: 440px; padding: 13px 14px 13px 16px; background: var(--surface-2); border: 1px solid var(--line-2); border-left: 4px solid var(--accent-hi);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5); font-size: 13.5px; line-height: 1.45;
+  opacity: 0; transform: translateX(16px); pointer-events: none; transition: opacity 0.16s, transform 0.16s;
+}
+.toast.warn { border-left-color: var(--warn); }
+.toast.err { border-left-color: var(--danger); }
+.toast.show { opacity: 1; transform: none; pointer-events: auto; }
+.toast .msg { white-space: pre-line; word-break: break-word; flex: 1; }
+.toast .t-title { display: block; font-family: var(--cond); font-stretch: condensed; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; font-size: 13px; margin-bottom: 3px; }
+.toast button { flex: none; height: 28px; padding: 0 10px; border: 1px solid var(--line-2); background: transparent; font-family: var(--cond); font-stretch: condensed; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 12px; }
+.toast button:hover { border-color: var(--accent-hi); }
+.toast button[hidden] { display: none; }
+
+@media (max-width: 1080px) {
+  .home { grid-template-columns: minmax(0, 1fr) 280px; }
+  .nick-edit input[type="text"] { font-size: 54px; height: 60px; }
+  .tiles .tile:last-child { display: none; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .meta .chip.opt { display: none; }
+  .play { min-width: 0; padding: 0 24px; font-size: 22px; }
+  .profile .sub { display: none; }
+  .profile .name { max-width: 110px; }
+  .dock.busy .profile { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 40 40" fill="none">
+        <path d="M20 3.5l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#efe5cf"/>
+        <path d="M20 19.5l9 5.2v10.4l-9 5.2-9-5.2V24.7z" stroke="#fff" stroke-width="2.2" stroke-linejoin="miter"/>
+        <path d="M11 24.7l9 5.2 9-5.2M20 29.9v10.4" stroke="#fff" stroke-width="2.2"/>
+      </svg>
+    </div>
+    <button class="nav" data-page="home" aria-current="page" title="Главная">
+      <svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-6h4v6"/></svg>
+      <span>Главная</span>
+    </button>
+    <button class="nav" data-page="settings" title="Настройки">
+      <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12"/><path d="M14 4v4h4V4zM7 10v4h4v-4zM16 16v4h4v-4z"/></svg>
+      <span>Настройки</span>
+    </button>
+    <button class="nav" data-page="about" title="Сведения">
+      <svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4"/><path d="M8.5 12h7M8.5 15.5h7M8.5 8.5h3"/></svg>
+      <span>Сведения</span>
+    </button>
+    <div class="rail-foot"><i></i><span id="sideVersion">-</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="update" id="updateBar" role="status">
+      <span>Доступна новая версия лаунчера</span><b id="updateVer">-</b><span class="sp"></span>
+      <button class="ghost" type="button" id="updateLater">Позже</button>
+      <button type="button" id="updateBtn">Обновить</button>
+    </div>
+
+    <!-- Главная -->
+    <section class="page active" id="page-home" aria-labelledby="homeTitle">
+      <div class="scene" aria-hidden="true">
+        <svg id="sceneSvg" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#050309"/>
+              <stop offset="0.55" stop-color="#140a26"/>
+              <stop offset="1" stop-color="#2a1052"/>
+            </linearGradient>
+            <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stop-color="#8f5cf0" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#8f5cf0" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="beamG" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="#c9b0ff" stop-opacity="0.32"/>
+              <stop offset="1" stop-color="#c9b0ff" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="fog" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#3b1680" stop-opacity="0"/>
+              <stop offset="1" stop-color="#3b1680" stop-opacity="0.55"/>
+            </linearGradient>
+          </defs>
+          <rect width="1200" height="720" fill="url(#sky)"/>
+          <g id="rays" opacity="0.5"></g>
+          <path class="beam" style="transform-origin: 610px 720px" d="M600 720 L560 0 L660 0 L620 720 Z" fill="url(#beamG)"/>
+          <path class="beam b2" style="transform-origin: 1110px 720px" d="M1100 720 L1060 0 L1160 0 L1120 720 Z" fill="url(#beamG)"/>
+          <circle cx="860" cy="64" r="200" fill="url(#halo)"/>
+          <g id="city"></g>
+          <g id="tower"></g>
+          <rect y="520" width="1200" height="200" fill="url(#fog)"/>
+        </svg>
+      </div>
+
+      <div class="home">
+        <div class="hero">
+          <div class="directive"><span>Директива № 1710</span><span>Допуск открыт</span></div>
+          <h1 id="homeTitle">Гражданин</h1>
+          <label class="nick-edit" id="heroNickBox" for="heroNick" title="Нажмите, чтобы изменить никнейм">
+            <input type="text" id="heroNick" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Ваш ник" aria-label="Никнейм" aria-describedby="heroNickNote">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+          </label>
+          <div class="nick-note" id="heroNickNote">Никнейм можно изменить прямо здесь</div>
+          <p>Ваш допуск к игре подтверждён. Нажмите «Играть»: лаунчер проверит файлы и запустит игру.</p>
+          <div class="tiles">
+            <button class="tile" type="button" data-go="about">
+              <div class="k">Сборка</div>
+              <div class="v" id="tilePack">1.7.10 Forge</div>
+            </button>
+            <button class="tile" type="button" data-go="settings">
+              <div class="k">Память</div>
+              <div class="v" id="tileRam">4 ГБ</div>
+            </button>
+            <button class="tile" type="button" data-go="about">
+              <div class="k">Сервер</div>
+              <div class="v" id="tileServer">-</div>
+            </button>
+          </div>
+        </div>
+
+        <aside class="news" aria-labelledby="newsTitle">
+          <div class="news-h"><b id="newsTitle">Вестник</b><span id="newsMeta">-</span></div>
+          <div class="news-list" id="newsList"><div class="news-empty">Загрузка...</div></div>
+        </aside>
+
+        <div class="dock" id="dock">
+          <div class="profile">
+            <div class="avatar" id="avatar"></div>
+            <div>
+              <div class="name" id="dockNick">Player</div>
+              <div class="sub" id="dockId">Удостоверение № 000000</div>
+            </div>
+          </div>
+          <div class="mid">
+            <div class="meta">
+              <span class="chip" id="chipVersion">Minecraft 1.7.10</span>
+              <span class="chip opt" id="chipRam">4 ГБ ОЗУ</span>
+            </div>
+            <div class="prog" aria-live="polite">
+              <div class="prog-top"><span class="prog-stage" id="progStage">Подготовка</span><span class="prog-num" id="progNum"></span></div>
+              <div class="bar indet" id="progBar"><i></i></div>
+            </div>
+          </div>
+          <button class="cancel" type="button" id="cancelBtn">Отмена</button>
+          <button class="play" id="playBtn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v18l16-9z"/></svg>
+            <span id="playText">Играть</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Настройки -->
+    <section class="page" id="page-settings" aria-labelledby="setTitle">
+      <div class="scroll">
+        <div class="wrap">
+          <div class="head">
+            <div><div class="kick">// Форма № 2</div><h1 id="setTitle">Настройки</h1></div>
+            <p>Изменения сохраняются автоматически.</p>
+          </div>
+          <form id="form" autocomplete="off" novalidate>
+            <div class="card">
+              <div class="card-h"><span class="no">01</span><h2>Профиль</h2><span>Имя, под которым вы войдёте в игру</span></div>
+              <div class="card-b form-grid">
+                <div class="field wide">
+                  <label for="nick">Никнейм</label>
+                  <input type="text" id="nick" maxlength="16" spellcheck="false" placeholder="Player" aria-describedby="nickErr">
+                  <div class="err" id="nickErr" role="alert"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><span class="no">02</span><h2>Память</h2><span>Сколько оперативной памяти получит игра</span></div>
+              <div class="card-b">
+                <div class="ram-top">
+                  <span class="lbl">Выделяемая память</span>
+                  <div class="ram-val" id="ramVal">4<small>ГБ</small></div>
+                </div>
+                <input type="range" id="ram" min="1" max="16" step="1" value="4" aria-label="Выделяемая память, ГБ">
+                <div class="ticks"><span style="left:0">1 ГБ</span><span style="left:20%;transform:translateX(-50%)">4</span><span style="left:46.67%;transform:translateX(-50%)">8</span><span style="left:73.33%;transform:translateX(-50%)">12</span><span style="right:0">16 ГБ</span></div>
+                <div class="hint" id="ramHint"><i></i><span id="ramHintText"></span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><span class="no">03</span><h2>Java и папки</h2><span>Пустое поле: значение по умолчанию</span></div>
+              <div class="card-b form-grid">
+                <div class="field wide">
+                  <label for="java">Путь к Java 8</label>
+                  <input type="text" id="java" spellcheck="false" placeholder="Скачать автоматически (рекомендуется)">
+                  <div class="sub">Minecraft 1.7.10 работает только с Java 8. По умолчанию лаунчер скачивает её сам.</div>
+                </div>
+                <div class="field wide">
+                  <label for="gameDir">Папка данных лаунчера</label>
+                  <div class="row-input">
+                    <input type="text" id="gameDir" spellcheck="false" placeholder="По умолчанию">
+                    <button class="btn" type="button" id="openData">Открыть</button>
+                  </div>
+                  <div class="sub">Здесь хранятся игра, библиотеки, Java и моды.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><span class="no">04</span><h2>Поведение</h2></div>
+              <div class="card-b">
+                <label class="check"><input type="checkbox" id="closeOnLaunch"><span class="box"></span><span>Закрывать лаунчер после запуска игры</span></label>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn" type="button" id="openGame">Папка игры</button>
+              <button class="btn" type="button" id="openLog">Журнал игры</button>
+              <button class="btn danger" type="button" id="resetBtn">Сбросить настройки</button>
+              <span class="saved" id="saved" aria-live="polite">Сохранено</span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Сведения -->
+    <section class="page" id="page-about" aria-labelledby="aboutTitle">
+      <div class="scroll">
+        <div class="wrap">
+          <div class="head">
+            <div><div class="kick">// Форма № 3</div><h1 id="aboutTitle">Сведения</h1></div>
+            <p>Лаунчер для Minecraft 1.7.10 с Forge.</p>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="no">01</span><h2>Сборка</h2></div>
+            <div class="card-b">
+              <dl class="rows">
+                <div class="row"><dt>Версия лаунчера</dt><dd id="aVersion">-</dd></div>
+                <div class="row"><dt>Платформа</dt><dd id="aPlatform">-</dd></div>
+                <div class="row"><dt>Игра</dt><dd id="aPack">-</dd></div>
+                <div class="row"><dt>Сервер</dt><dd id="aServer">-</dd></div>
+                <div class="row"><dt>Сервер проекта</dt><dd id="aApi">-</dd></div>
+                <div class="row"><dt>Файл настроек</dt><dd id="aConfig">-</dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="no">02</span><h2>Состояние</h2></div>
+            <div class="card-b">
+              <ul class="status">
+                <li>Интерфейс <span class="stamp ok">Работает</span></li>
+                <li>Настройки <span class="stamp ok" id="stSettings">Сохраняются</span></li>
+                <li>Запуск игры <span class="stamp ok" id="stGame">Готов</span></li>
+                <li>Обновления <span class="stamp warn" id="stUpdate">Проверка</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <div class="msg"><span class="t-title" id="toastTitle"></span><span id="toastText"></span></div>
+  <button type="button" id="toastAction" hidden>Журнал</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DEFAULTS = { nick: 'Player', ram: 4, java: '', gameDir: '', closeOnLaunch: false };
+  var NICK_RE = /^[A-Za-z0-9_]{3,16}$/;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var state = Object.assign({}, DEFAULTS);
+  var info = { version: 'dev', platform: 'browser', pack: 'Minecraft 1.7.10 · Forge 10.13.4.1614', server: '', apiConfigured: false, configPath: '-', dataDir: '-' };
+  var hasBridge = typeof window.gdz_get_settings === 'function';
+  var phase = 'idle'; // idle | busy | running
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ---------- Утилиты ---------- */
+  function rng(seed) {
+    var s = seed >>> 0;
+    return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function hash(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(SVGNS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function mb(bytes) {
+    if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' КБ';
+    return (bytes / 1048576).toFixed(bytes < 100 * 1048576 ? 1 : 0) + ' МБ';
+  }
+
+  /* ---------- Сцена: монументальный город ночью ---------- */
+  function buildScene() {
+    var r = rng(1710);
+    var cx = 860, cy = 64; // центр эмблемы на шпиле
+
+    // Лучи-«солнце» от эмблемы.
+    var rays = $('rays');
+    for (var i = 0; i < 24; i++) {
+      var a0 = (i / 24) * Math.PI * 2, a1 = a0 + Math.PI / 48;
+      var d = 'M' + cx + ' ' + cy + ' L' + (cx + Math.cos(a0) * 1500).toFixed(0) + ' ' + (cy + Math.sin(a0) * 1500).toFixed(0) +
+              ' L' + (cx + Math.cos(a1) * 1500).toFixed(0) + ' ' + (cy + Math.sin(a1) * 1500).toFixed(0) + ' Z';
+      el('path', { d: d, fill: '#5b2bb0', opacity: i % 2 ? 0.16 : 0.08 }, rays);
+    }
+
+    // Кварталы: прямоугольные корпуса с антеннами и окнами, три плана.
+    var city = $('city');
+    [{ y: 560, h: 170, c: '#1b0d36', w: [30, 70] }, { y: 610, h: 130, c: '#120926', w: [40, 90] }, { y: 660, h: 90, c: '#09060f', w: [50, 120] }].forEach(function (L, li) {
+      var x = -20;
+      while (x < 1220) {
+        var w = Math.round((L.w[0] + r() * (L.w[1] - L.w[0])) / 10) * 10;
+        var h = Math.round((L.h * (0.35 + r() * 0.65)) / 10) * 10;
+        var top = L.y - h;
+        el('rect', { x: x, y: top, width: w, height: 720 - top, fill: L.c }, city);
+        if (r() < 0.25) el('rect', { x: x + w / 2 - 1, y: top - 26, width: 2, height: 26, fill: L.c }, city);
+        if (li < 2) {
+          var g = el('g', { class: 'windows' }, city);
+          for (var wy = top + 10; wy < L.y - 6; wy += 14) {
+            for (var wx = x + 6; wx < x + w - 8; wx += 12) {
+              if (r() < 0.12) {
+                var win = el('rect', { x: wx, y: wy, width: 5, height: 7, fill: li ? '#9b7be0' : '#6c4bb0', opacity: (0.35 + r() * 0.5).toFixed(2) }, g);
+                if (r() < 0.2) win.style.animationDelay = (r() * 7).toFixed(1) + 's'; else win.style.animation = 'none';
+              }
+            }
+          }
+        }
+        x += w + (r() < 0.3 ? 10 : 0);
+      }
+    });
+
+    // Главная башня: ступенчатый монумент со шпилем, звездой и знамёнами.
+    var tower = $('tower');
+    [[260, 470, 250], [200, 330, 140], [150, 240, 90], [104, 180, 60], [64, 130, 50]].forEach(function (t, i) {
+      var w = t[0], y = t[1], h = t[2];
+      el('rect', { x: cx - w / 2, y: y, width: w, height: 720 - y, fill: i % 2 ? '#1d0f3a' : '#170b30' }, tower);
+      el('rect', { x: cx - w / 2, y: y, width: w, height: 3, fill: '#6a2bd6' }, tower);
+      for (var px = cx - w / 2 + 14; px < cx + w / 2 - 10; px += 18) {
+        el('rect', { x: px, y: y + 10, width: 4, height: h - 10, fill: '#0e0620', opacity: 0.8 }, tower);
+      }
+      var g = el('g', { class: 'windows' }, tower);
+      for (var wy = y + 16; wy < y + h - 8; wy += 16) {
+        for (var wx = cx - w / 2 + 6; wx < cx + w / 2 - 8; wx += 18) {
+          if (r() < 0.3) el('rect', { x: wx, y: wy, width: 6, height: 8, fill: '#b597ff', opacity: (0.3 + r() * 0.6).toFixed(2) }, g);
+        }
+      }
+    });
+    el('rect', { x: cx - 4, y: cy, width: 8, height: 130 - cy, fill: '#1d0f3a' }, tower);
+    var star = [];
+    for (var s = 0; s < 10; s++) {
+      var ang = -Math.PI / 2 + s * Math.PI / 5, rad = s % 2 ? 12 : 30;
+      star.push((cx + Math.cos(ang) * rad).toFixed(1) + ',' + (cy + Math.sin(ang) * rad).toFixed(1));
+    }
+    el('polygon', { points: star.join(' '), fill: '#efe5cf' }, tower);
+    [-1, 1].forEach(function (side) {
+      var bx = cx + side * 150 - 16;
+      el('path', { d: 'M' + bx + ' 350 h32 v150 l-16 -14 l-16 14 Z', fill: '#6a2bd6' }, tower);
+      el('rect', { x: bx + 12, y: 372, width: 8, height: 8, fill: '#efe5cf' }, tower);
+    });
+
+    // Лёгкий параллакс от курсора.
+    var svg = $('sceneSvg'), home = $('page-home');
+    home.addEventListener('mousemove', function (e) {
+      var rect = home.getBoundingClientRect();
+      var dx = (e.clientX - rect.left) / rect.width - 0.5, dy = (e.clientY - rect.top) / rect.height - 0.5;
+      svg.style.transform = 'translate(' + (-dx * 16).toFixed(1) + 'px,' + (-dy * 9).toFixed(1) + 'px)';
+    });
+  }
+
+  /* ---------- Аватар: пиксельная голова 8x8, цвета зависят от ника ---------- */
+  function renderAvatar(nick) {
+    var r = rng(hash(nick || 'Player'));
+    var hue = Math.floor(r() * 360);
+    var skin = ['#f1c7a0', '#e0ac7e', '#c68a5e', '#8d5a3b'][Math.floor(r() * 4)];
+    var hair = 'hsl(' + hue + ',40%,' + (15 + Math.floor(r() * 18)) + '%)';
+    var eye = 'hsl(' + ((hue + 180) % 360) + ',65%,58%)';
+    var svg = el('svg', { viewBox: '0 0 8 8' });
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        var c = skin;
+        if (y < 2 || (y === 2 && (x === 0 || x === 7))) c = hair;
+        if (y === 4 && (x === 1 || x === 5)) c = '#fff';
+        if (y === 4 && (x === 2 || x === 6)) c = eye;
+        if (y === 6 && x >= 3 && x <= 4) c = '#6b3b2a';
+        el('rect', { x: x, y: y, width: 1, height: 1, fill: c }, svg);
+      }
+    }
+    var box = $('avatar');
+    box.textContent = '';
+    box.appendChild(svg);
+  }
+
+  /* ---------- Навигация ---------- */
+  var navs = document.querySelectorAll('.nav');
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + name); });
+    navs.forEach(function (n) {
+      if (n.dataset.page === name) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current');
+    });
+  }
+  navs.forEach(function (n) { n.addEventListener('click', function () { showPage(n.dataset.page); }); });
+  document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { showPage(b.dataset.go); }); });
+
+  /* ---------- Уведомления ---------- */
+  var toastTimer = 0, toastActionFn = null;
+  function toast(title, text, kind, action) {
+    $('toastTitle').textContent = title || '';
+    $('toastText').textContent = text || '';
+    var btn = $('toastAction');
+    toastActionFn = action ? action.fn : null;
+    btn.hidden = !action;
+    if (action) btn.textContent = action.label;
+    $('toast').className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $('toast').className = 'toast'; }, kind === 'err' ? 12000 : 4200);
+  }
+  $('toastAction').addEventListener('click', function () { if (toastActionFn) toastActionFn(); $('toast').className = 'toast'; });
+
+  function openTarget(which) {
+    if (!hasBridge) { toast('Недоступно', 'Работает только в лаунчере'); return; }
+    window.gdz_open(which).then(function (ok) {
+      if (!ok) toast('Не найдено', which === 'log' ? 'Журнал появится после первого запуска игры' : 'Папка появится после первого запуска', 'warn');
+    });
+  }
+
+  /* ---------- Отрисовка состояния ---------- */
+  var lastAvatarNick = null;
+  function render() {
+    var nick = state.nick || DEFAULTS.nick;
+    var heroInput = $('heroNick');
+    if (document.activeElement !== heroInput && heroInput.value !== state.nick) heroInput.value = state.nick;
+    var settingsInput = $('nick');
+    if (document.activeElement !== settingsInput && settingsInput.value !== state.nick) settingsInput.value = state.nick;
+    fitNick();
+    $('dockNick').textContent = nick;
+    $('dockId').textContent = 'Удостоверение № ' + String(hash(nick) % 1000000).padStart(6, '0');
+    $('chipRam').textContent = state.ram + ' ГБ ОЗУ';
+    $('tileRam').textContent = state.ram + ' ГБ';
+    var rv = $('ramVal');
+    rv.textContent = state.ram;
+    var small = document.createElement('small'); small.textContent = 'ГБ'; rv.appendChild(small);
+
+    var r = $('ram');
+    r.style.setProperty('--fill', ((r.value - r.min) * 100 / (r.max - r.min)) + '%');
+    var hint = $('ramHint');
+    if (state.ram < 2) { hint.className = 'hint warn'; $('ramHintText').textContent = 'Слишком мало: Forge с модами может не запуститься'; }
+    else if (state.ram > 8) { hint.className = 'hint warn'; $('ramHintText').textContent = 'Больше 8 ГБ для 1.7.10 обычно не нужно и может замедлить сборку мусора'; }
+    else { hint.className = 'hint'; $('ramHintText').textContent = 'Рекомендуется: 3-4 ГБ для небольших сборок, 6-8 ГБ для крупных'; }
+
+    if (lastAvatarNick !== nick) { renderAvatar(nick); lastAvatarNick = nick; }
+  }
+  function toForm() {
+    $('nick').value = state.nick;
+    $('ram').value = state.ram;
+    $('java').value = state.java;
+    $('gameDir').value = state.gameDir;
+    $('closeOnLaunch').checked = !!state.closeOnLaunch;
+    render();
+  }
+
+  function sanitize(obj) {
+    var s = Object.assign({}, DEFAULTS);
+    if (obj && typeof obj === 'object') {
+      if (typeof obj.nick === 'string') s.nick = obj.nick.slice(0, 16);
+      var ram = Number(obj.ram);
+      if (isFinite(ram)) s.ram = Math.min(16, Math.max(1, Math.round(ram)));
+      if (typeof obj.java === 'string') s.java = obj.java.slice(0, 1024);
+      if (typeof obj.gameDir === 'string') s.gameDir = obj.gameDir.slice(0, 1024);
+      s.closeOnLaunch = obj.closeOnLaunch === true;
+    }
+    return s;
+  }
+
+  /* ---------- Сохранение (с задержкой) ---------- */
+  var saveTimer = 0, savedTimer = 0;
+  function flashSaved(ok) {
+    var elS = $('saved');
+    elS.textContent = ok ? 'Сохранено' : 'Не удалось сохранить';
+    elS.classList.toggle('bad', !ok);
+    elS.classList.add('show');
+    var st = $('stSettings');
+    st.textContent = ok ? 'Сохраняются' : 'Ошибка';
+    st.className = 'stamp ' + (ok ? 'ok' : 'err');
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(function () { elS.classList.remove('show'); }, 1800);
+  }
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      if (!hasBridge) { flashSaved(true); return; }
+      window.gdz_save_settings(JSON.stringify(state)).then(flashSaved, function () { flashSaved(false); });
+    }, 350);
+  }
+
+  // Ширина поля ника по тексту: плашка растёт вместе с ником.
+  var measureCtx = document.createElement('canvas').getContext('2d');
+  function fitNick() {
+    var input = $('heroNick');
+    input.style.fontSize = '';
+    var cs = getComputedStyle(input);
+    var base = parseFloat(cs.fontSize);
+    var text = input.value || input.placeholder;
+    measureCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + base + 'px ' + cs.fontFamily;
+    var width = measureCtx.measureText(text).width + 12;
+    // Длинный ник на узком окне уменьшаем, чтобы плашка не вылезала за колонку.
+    var hero = $('heroNickBox').parentElement, hs = getComputedStyle(hero);
+    var avail = hero.clientWidth - parseFloat(hs.paddingLeft) - parseFloat(hs.paddingRight) - 80;
+    if (avail > 100 && width > avail) {
+      var size = Math.max(28, Math.floor(base * avail / width));
+      input.style.fontSize = size + 'px';
+      width = width * size / base;
+    }
+    input.style.width = Math.ceil(width) + 'px';
+  }
+
+  var NICK_HINT = 'От 3 до 16 символов: латиница, цифры и _';
+  function validateNick(force) {
+    var v = state.nick;
+    var ok = NICK_RE.test(v) || (v === '' && !force);
+    $('nick').setAttribute('aria-invalid', ok ? 'false' : 'true');
+    $('heroNick').setAttribute('aria-invalid', ok ? 'false' : 'true');
+    $('heroNickBox').classList.toggle('invalid', !ok);
+    $('nickErr').textContent = ok ? '' : (v === '' ? 'Укажите никнейм' : NICK_HINT);
+    var note = $('heroNickNote');
+    note.classList.toggle('err', !ok);
+    note.textContent = ok ? 'Никнейм можно изменить прямо здесь' : (v === '' ? 'Укажите никнейм, чтобы играть' : NICK_HINT);
+    return ok;
+  }
+
+  function bind(id, key, transform) {
+    $(id).addEventListener('input', function (e) {
+      state[key] = transform ? transform(e.target) : e.target.value;
+      if (key === 'nick') validateNick();
+      render();
+      scheduleSave();
+    });
+  }
+  bind('nick', 'nick');
+  bind('heroNick', 'nick');
+  $('heroNick').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === 'Escape') e.target.blur(); });
+  window.addEventListener('resize', fitNick);
+  bind('ram', 'ram', function (t) { return Number(t.value); });
+  bind('java', 'java');
+  bind('gameDir', 'gameDir');
+  $('closeOnLaunch').addEventListener('change', function (e) { state.closeOnLaunch = e.target.checked; scheduleSave(); });
+
+  $('form').addEventListener('submit', function (e) { e.preventDefault(); });
+  $('resetBtn').addEventListener('click', function () {
+    state = Object.assign({}, DEFAULTS);
+    toForm(); validateNick(); scheduleSave();
+    toast('Готово', 'Настройки сброшены');
+  });
+  $('openGame').addEventListener('click', function () { openTarget('game'); });
+  $('openLog').addEventListener('click', function () { openTarget('log'); });
+  $('openData').addEventListener('click', function () { openTarget('data'); });
+
+  /* ---------- Запуск: состояние нижней панели ---------- */
+  function setPhase(p) {
+    phase = p;
+    $('dock').classList.toggle('busy', p === 'busy');
+    $('playBtn').disabled = p !== 'idle';
+    $('playText').textContent = p === 'running' ? 'В игре' : p === 'busy' ? 'Ждите' : 'Играть';
+    $('stGame').textContent = p === 'running' ? 'Игра запущена' : 'Готов';
+    if (p === 'busy') { $('progStage').textContent = 'Подготовка'; $('progNum').textContent = ''; $('progBar').className = 'bar indet'; }
+  }
+
+  // События от лаунчера (C++ вызывает window.__gdz).
+  window.__gdz = function (ev) {
+    if (!ev || typeof ev !== 'object') return;
+    switch (ev.type) {
+      case 'stage':
+        $('progStage').textContent = ev.text;
+        $('progBar').className = 'bar indet';
+        $('progNum').textContent = '';
+        break;
+      case 'progress':
+        if (ev.total > 0) {
+          $('progBar').className = 'bar';
+          $('progBar').firstChild.style.width = (ev.done * 100 / ev.total).toFixed(1) + '%';
+          $('progNum').textContent = ev.done + ' / ' + ev.total + (ev.bytes > 0 ? ' · ' + mb(ev.bytes) : '');
+        }
+        break;
+      case 'launched':
+        setPhase('running');
+        toast('Игра запущена', 'Minecraft открывается. Первый запуск с модами может занять пару минут.');
+        break;
+      case 'exited':
+        setPhase('idle');
+        if (ev.code !== 0) toast('Игра завершилась с ошибкой', 'Код выхода ' + ev.code + '. Подробности в журнале игры.', 'err', { label: 'Журнал', fn: function () { openTarget('log'); } });
+        break;
+      case 'cancelled':
+        setPhase('idle');
+        toast('Отменено', 'Подготовка остановлена. Скачанные файлы сохранены.');
+        break;
+      case 'error':
+        setPhase('idle');
+        toast('Ошибка', ev.message, 'err', { label: 'Журнал', fn: function () { openTarget('launcherLog'); } });
+        break;
+    }
+  };
+
+  /* Предпросмотр в браузере: без лаунчера показываем, как выглядит подготовка. */
+  function simulate() {
+    var stages = [['Получение списка файлов сборки', 1, 0], ['Загрузка Java 8', 214, 40e6], ['Загрузка Minecraft и Forge', 58, 22e6], ['Загрузка ресурсов игры', 1205, 118e6], ['Синхронизация сборки', 64, 96e6]];
+    var si = 0, done = 0, timer = setInterval(function () {
+      if (phase !== 'busy') { clearInterval(timer); return; }
+      var s = stages[si];
+      if (done === 0) window.__gdz({ type: 'stage', text: s[0] });
+      done = Math.min(s[1], done + Math.max(1, Math.round(s[1] / 12)));
+      window.__gdz({ type: 'progress', done: done, total: s[1], bytes: s[2] * done / s[1] });
+      if (done >= s[1]) { si++; done = 0; }
+      if (si >= stages.length) {
+        clearInterval(timer);
+        window.__gdz({ type: 'launched' });
+        setTimeout(function () { window.__gdz({ type: 'exited', code: 0 }); }, 3000);
+      }
+    }, 160);
+  }
+
+  $('playBtn').addEventListener('click', function () {
+    if (phase !== 'idle') return;
+    if (!NICK_RE.test(state.nick)) {
+      validateNick(true);
+      $('heroNick').focus();
+      $('heroNick').select();
+      toast('Нужен никнейм', 'Введите ник на главной: ' + NICK_HINT.toLowerCase(), 'warn');
+      return;
+    }
+    setPhase('busy');
+    if (!hasBridge) { simulate(); return; }
+    window.gdz_play(JSON.stringify(state)).then(function (res) {
+      if (res && res.ok) return;
+      setPhase(res && res.code === 'running' ? 'running' : 'idle');
+      toast('Подождите', res && res.code === 'running' ? 'Игра уже запущена' : 'Подготовка уже идёт', 'warn');
+    }, function () {
+      setPhase('idle');
+      toast('Ошибка', 'Не удалось связаться с лаунчером', 'err');
+    });
+  });
+  $('cancelBtn').addEventListener('click', function () {
+    $('progStage').textContent = 'Отмена...';
+    if (hasBridge) window.gdz_cancel(); else window.__gdz({ type: 'cancelled' });
+  });
+
+  /* ---------- Новости и обновления ---------- */
+  function renderNews(list, message) {
+    var box = $('newsList');
+    box.textContent = '';
+    if (!list || !list.length) {
+      var empty = document.createElement('div');
+      empty.className = 'news-empty';
+      empty.textContent = message;
+      box.appendChild(empty);
+      $('newsMeta').textContent = '0 сообщений';
+      return;
+    }
+    list.forEach(function (n) {
+      var item = document.createElement('div'); item.className = 'news-item';
+      if (n.date) { var d = document.createElement('div'); d.className = 'd'; d.textContent = n.date; item.appendChild(d); }
+      if (n.title) { var t = document.createElement('div'); t.className = 't'; t.textContent = n.title; item.appendChild(t); }
+      if (n.text) { var x = document.createElement('div'); x.className = 'x'; x.textContent = n.text; item.appendChild(x); }
+      box.appendChild(item);
+    });
+    $('newsMeta').textContent = list.length + ' сообщ.';
+  }
+
+  function checkUpdates() {
+    if (!hasBridge) {
+      renderNews([
+        { date: '26.09.2026', title: 'Сервер открыт', text: 'Это пример новости. В лаунчере здесь будут сообщения из launcher.json.' },
+        { date: '20.09.2026', title: 'Обновление сборки', text: 'Моды синхронизируются автоматически при каждом запуске.' }
+      ]);
+      $('stUpdate').textContent = 'Предпросмотр';
+      return;
+    }
+    if (!info.apiConfigured) {
+      renderNews([], 'Вестник не подключён: адрес сервера проекта не задан при сборке лаунчера.');
+      $('stUpdate').textContent = 'Не настроены';
+      return;
+    }
+    window.gdz_check_update().then(function (u) {
+      if (!u || !u.ok) {
+        renderNews([], 'Нет связи с сервером проекта. Играть можно: уже скачанные файлы работают без сети.');
+        $('stUpdate').textContent = 'Нет связи';
+        $('stUpdate').className = 'stamp err';
+        return;
+      }
+      renderNews(u.news, 'Новых сообщений нет.');
+      $('stUpdate').textContent = u.updateAvailable ? 'Есть новая' : 'Актуальна';
+      $('stUpdate').className = 'stamp ' + (u.updateAvailable ? 'warn' : 'ok');
+      if (u.updateAvailable) {
+        $('updateVer').textContent = 'v' + u.latest;
+        $('updateBar').classList.add('show');
+      }
+    }, function () {
+      renderNews([], 'Не удалось получить новости.');
+    });
+  }
+  $('updateLater').addEventListener('click', function () { $('updateBar').classList.remove('show'); });
+  $('updateBtn').addEventListener('click', function () {
+    var b = $('updateBtn');
+    b.disabled = true; b.textContent = 'Загрузка...';
+    window.gdz_apply_update().then(function (res) {
+      if (res && res.ok) { b.textContent = 'Перезапуск...'; return; }
+      b.disabled = false; b.textContent = 'Обновить';
+      toast('Обновление не установлено', (res && res.error) || 'Неизвестная ошибка', 'err');
+    });
+  });
+
+  /* ---------- Инициализация ---------- */
+  function applyInfo() {
+    $('sideVersion').textContent = 'v' + info.version;
+    $('aVersion').textContent = info.version;
+    $('aPlatform').textContent = info.platform === 'windows' ? 'Windows' : info.platform === 'linux' ? 'Linux' : info.platform;
+    $('aPack').textContent = info.pack;
+    $('aServer').textContent = info.server || (info.apiConfigured ? 'Задаётся сервером проекта' : 'Не задан');
+    $('aApi').textContent = info.apiConfigured ? 'Подключён' : 'Не задан при сборке';
+    $('aConfig').textContent = info.configPath;
+    $('tilePack').textContent = info.pack.replace(/^Minecraft\s+/, '').replace(/\s*·\s*Forge.*$/, ' Forge');
+    $('chipVersion').textContent = info.pack;
+    $('tileServer').textContent = info.server || (info.apiConfigured ? 'Из сборки' : 'Не задан');
+    if (info.dataDir && info.dataDir !== '-') $('gameDir').placeholder = info.dataDir;
+  }
+  function loadInfo() {
+    var p = typeof window.gdz_info === 'function' ? window.gdz_info() : Promise.resolve(info);
+    return p.then(function (i) { info = Object.assign(info, i); applyInfo(); }, function () { applyInfo(); });
+  }
+  function loadSettings() {
+    var p = hasBridge ? window.gdz_get_settings() : Promise.resolve({});
+    p.then(function (obj) { state = sanitize(obj); }, function () { state = Object.assign({}, DEFAULTS); })
+      .then(function () { toForm(); validateNick(); });
+  }
+
+  buildScene();
+  toForm();
+  loadInfo().then(checkUpdates);
+  loadSettings();
+})();
+</script>
+</body>
+</html>

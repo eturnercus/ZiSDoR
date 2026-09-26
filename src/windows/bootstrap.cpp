@@ -4,14 +4,13 @@
 #include <vector>
 #include <windows.h>
 #include <urlmon.h>
-#include "WebView2.h"
 #include "bootstrap.hpp"
 #include <winreg.h>
 #include "../shared/debug.hpp"
 
-#ifdef MSVC
+#ifdef _MSC_VER
 #pragma comment(lib, "urlmon.lib")
-#pragma comment(lib, "WebView2Loader.lib")
+#pragma comment(lib, "advapi32.lib")
 #endif
 
 /// \brief Функция для проверки наличия WebView2
@@ -38,7 +37,9 @@ bool bootstrap::isWebView2Installed() {
 
         if (RegOpenKeyExW(check.root, fullPath.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
             wchar_t version[256];
-            DWORD size = sizeof(version);
+            // Оставляем место под завершающий ноль: значение в реестре может быть не терминировано
+            // или занимать весь буфер, и запись за его пределы была бы переполнением.
+            DWORD size = sizeof(version) - sizeof(wchar_t);
 
             if (RegQueryValueExW(hKey, L"pv", NULL, NULL, (LPBYTE)version, &size) == ERROR_SUCCESS) {
                 version[size / sizeof(wchar_t)] = L'\0';
@@ -75,7 +76,8 @@ std::optional<fs::path> bootstrap::downloadWebView2() {
 
 		if (!fs::exists(downloadPath)) return {};
 		
-		downloadPath += "WebView2Setup.exe";
+		// operator/= сам ставит разделитель, в отличие от += не зависит от того, есть ли он в конце пути.
+		downloadPath /= "WebView2Setup.exe";
 		
 		HRESULT hr = URLDownloadToFileW(NULL, url, downloadPath.c_str(), 0, NULL);
 
@@ -83,8 +85,8 @@ std::optional<fs::path> bootstrap::downloadWebView2() {
 			return downloadPath;
 		}
 	}
-	catch (std::runtime_error& e) {
-		throw e;
+	catch (std::runtime_error&) {
+		throw;
 	}
 	return std::nullopt;
 }
@@ -100,10 +102,11 @@ bool bootstrap::installWebView2(fs::path filePath) {
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
 
-	wchar_t cmdBuffer[MAX_PATH*2];
-	wcscpy_s(cmdBuffer, commandLine.c_str());
+	// CreateProcessW требует изменяемый буфер; вектор не имеет ограничения на длину пути, в отличие от MAX_PATH*2.
+	std::vector<wchar_t> cmdBuffer(commandLine.begin(), commandLine.end());
+	cmdBuffer.push_back(L'\0');
 
-	if (!CreateProcessW(NULL, cmdBuffer, NULL, NULL, false, 0, NULL, NULL, &si, &pi)) {
+	if (!CreateProcessW(NULL, cmdBuffer.data(), NULL, NULL, false, 0, NULL, NULL, &si, &pi)) {
 		throw std::runtime_error("Ошибка запуска установщика!");
 	}
 
