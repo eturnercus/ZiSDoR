@@ -1,9 +1,13 @@
-name: C++ Multi-platform CI
+name: Build and Release
 
-# Сборка запускается:
-#   - на каждый push в main и на pull request в main (архивы доступны на странице запуска);
-#   - при создании тега вида v1.2.3 (дополнительно публикуется релиз);
-#   - вручную из вкладки Actions.
+# Что делает:
+#   - собирает два файла:
+#       GDZLauncher.exe              — Windows, весь лаунчер в одном файле (без DLL и установки);
+#       GDZLauncher-x86_64.AppImage  — Linux, один исполняемый файл;
+#   - после сборки на push в main/master (и при ручном запуске) публикует релиз v<версия>,
+#     где версия берётся из project(GDZLauncher VERSION ...) в CMakeLists.txt (сейчас 0.001).
+#     Пока версия не меняется, каждый новый push заменяет файлы в этом же релизе;
+#   - на pull request только собирает, без релиза.
 #
 # Адрес API и сервер задаются переменными репозитория (Settings -> Secrets and variables -> Actions -> Variables):
 #   GDZ_API_URL         например https://example.org/launcher/
@@ -12,7 +16,6 @@ name: C++ Multi-platform CI
 on:
   push:
     branches: [ "main", "master" ]
-    tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
@@ -29,42 +32,8 @@ env:
   GDZ_SERVER_ADDRESS: ${{ vars.GDZ_SERVER_ADDRESS }}
 
 jobs:
-  # Сборка под Linux. Ubuntu 22.04: бинарник запустится и на более новых дистрибутивах.
-  build-linux:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev build-essential cmake pkg-config
-
-    - name: Configure CMake
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGDZ_API_URL="$GDZ_API_URL" -DGDZ_SERVER_ADDRESS="$GDZ_SERVER_ADDRESS"
-
-    - name: Build
-      run: cmake --build build --config Release --parallel
-
-    - name: Package
-      run: |
-        test -x build/build/launcher
-        strip build/build/launcher
-        mkdir -p dist/GDZLauncher
-        cp build/build/launcher dist/GDZLauncher/
-        tar -C dist -czf GDZLauncher-linux-x86_64.tar.gz GDZLauncher
-        tar -tzf GDZLauncher-linux-x86_64.tar.gz
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: launcher-linux
-        path: |
-          GDZLauncher-linux-x86_64.tar.gz
-          dist/GDZLauncher/launcher
-        if-no-files-found: error
-
-  # Сборка под Windows (MSVC)
+  # Windows (MSVC): один GDZLauncher.exe. Загрузчик WebView2 и C++ runtime (/MT) встроены,
+  # нужны только системные библиотеки Windows 10/11.
   build-windows:
     runs-on: windows-latest
     steps:
@@ -77,97 +46,96 @@ jobs:
     - name: Build
       run: cmake --build build --config Release --parallel
 
-    - name: Package
+    - name: Collect
       shell: pwsh
       run: |
-        foreach ($f in 'Updater.exe', 'launcher.dll') {
-          if (-not (Test-Path "build/build/Release/$f")) { throw "Missing $f" }
-        }
-        New-Item -ItemType Directory -Force dist/GDZLauncher | Out-Null
-        Copy-Item build/build/Release/Updater.exe, build/build/Release/launcher.dll dist/GDZLauncher/
-        Compress-Archive -Path dist/GDZLauncher -DestinationPath GDZLauncher-windows-x64.zip
-        Get-ChildItem dist/GDZLauncher
+        $exe = "build/build/Release/GDZLauncher.exe"
+        if (-not (Test-Path $exe)) { throw "Missing $exe" }
+        New-Item -ItemType Directory -Force out | Out-Null
+        Copy-Item $exe out/GDZLauncher.exe
+        Get-ChildItem out
 
-    - name: Upload Artifacts
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: launcher-windows
-        path: |
-          GDZLauncher-windows-x64.zip
-          dist/GDZLauncher/Updater.exe
-          dist/GDZLauncher/launcher.dll
+        name: GDZLauncher-windows
+        path: out/GDZLauncher.exe
         if-no-files-found: error
 
-  # Windows-сборка кросс-компилятором MinGW-w64 из Linux (cmake/mingw-w64.cmake): запасной вариант к MSVC,
-  # статически слинкована, нужны только системные библиотеки Windows.
-  build-windows-mingw:
-    runs-on: ubuntu-24.04
+  # Linux: AppImage. Ubuntu 22.04 — чтобы файл запускался и на более старых дистрибутивах (glibc 2.35+).
+  # Внутри только сам лаунчер; WebKitGTK 4.1 и libcurl берутся из системы.
+  build-linux:
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 cmake zip
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev build-essential cmake pkg-config file
+
+    - name: Configure CMake
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGDZ_API_URL="$GDZ_API_URL" -DGDZ_SERVER_ADDRESS="$GDZ_SERVER_ADDRESS"
 
     - name: Build
-      run: |
-        cmake -S . -B build-win -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DCMAKE_BUILD_TYPE=Release -DGDZ_API_URL="$GDZ_API_URL" -DGDZ_SERVER_ADDRESS="$GDZ_SERVER_ADDRESS"
-        cmake --build build-win --parallel
-        ls -la build-win/build/Updater.exe build-win/build/launcher.dll
+      run: cmake --build build --config Release --parallel
 
-    - name: Package
+    - name: Build AppImage
       run: |
-        mkdir -p dist/GDZLauncher
-        cp build-win/build/Updater.exe build-win/build/launcher.dll dist/GDZLauncher/
-        (cd dist && zip -r ../GDZLauncher-windows-x64-mingw.zip GDZLauncher)
+        strip build/build/launcher
+        bash scripts/build-appimage.sh build/build/launcher out/GDZLauncher-x86_64.AppImage
+        ls -la out
 
-    - name: Upload Artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: launcher-windows-mingw
-        path: GDZLauncher-windows-x64-mingw.zip
+        name: GDZLauncher-linux
+        path: out/GDZLauncher-x86_64.AppImage
         if-no-files-found: error
 
-  # Сквозной тест на Linux: загрузка, синхронизация модов, запуск Java, работа без сети, самообновление.
+  # Сквозной тест на Linux: загрузка, синхронизация модов, запуск Java, работа без сети,
+  # самообновление обычного бинарника и AppImage. На публикацию релиза не влияет.
   e2e-linux:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev build-essential cmake pkg-config openjdk-8-jdk-headless xvfb
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev build-essential cmake pkg-config file openjdk-8-jdk-headless xvfb
 
     - name: Build (test harness)
       run: |
         cmake -S . -B build-e2e -DCMAKE_BUILD_TYPE=Release -DGDZ_E2E_HARNESS=ON
         cmake --build build-e2e --parallel
+        bash scripts/build-appimage.sh build-e2e/build/launcher build-e2e/GDZLauncher-x86_64.AppImage
 
     - name: Run end-to-end tests
-      run: python3 tests/e2e/run_e2e.py --launcher build-e2e/build/launcher --java-home /usr/lib/jvm/java-8-openjdk-amd64
+      run: |
+        python3 tests/e2e/run_e2e.py --launcher build-e2e/build/launcher \
+          --appimage build-e2e/GDZLauncher-x86_64.AppImage --java-home /usr/lib/jvm/java-8-openjdk-amd64
 
-  # Публикация релиза при пуше тега v*
+  # Релиз сразу после сборки обоих файлов.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [ build-linux, build-windows, e2e-linux ]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [ build-windows, build-linux ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
     - uses: actions/checkout@v4
 
-    - name: Check version
+    - name: Read version
       run: |
-        TAG="${GITHUB_REF_NAME#v}"
         VER=$(sed -n 's/^project(GDZLauncher VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
-        echo "tag=$TAG cmake=$VER"
-        if [ "$TAG" != "$VER" ]; then
-          echo "::error::Тег $GITHUB_REF_NAME не совпадает с версией $VER в CMakeLists.txt"
-          exit 1
-        fi
+        if [ -z "$VER" ]; then echo "::error::Не найдена версия в CMakeLists.txt"; exit 1; fi
         echo "VERSION=$VER" >> "$GITHUB_ENV"
+        echo "TAG=v$VER" >> "$GITHUB_ENV"
+        echo "Версия: $VER"
 
     - name: Download artifacts
       uses: actions/download-artifact@v4
@@ -177,22 +145,39 @@ jobs:
     - name: Prepare release files
       run: |
         mkdir -p release
-        cp artifacts/launcher-linux/GDZLauncher-linux-x86_64.tar.gz release/
-        cp artifacts/launcher-windows/GDZLauncher-windows-x64.zip release/
-        # Отдельные файлы для самообновления (на них ссылается launcher.json).
-        cp artifacts/launcher-linux/dist/GDZLauncher/launcher release/launcher
-        cp artifacts/launcher-windows/dist/GDZLauncher/Updater.exe release/Updater.exe
-        cp artifacts/launcher-windows/dist/GDZLauncher/launcher.dll release/launcher.dll
+        cp artifacts/GDZLauncher-windows/GDZLauncher.exe release/
+        cp artifacts/GDZLauncher-linux/GDZLauncher-x86_64.AppImage release/
+        chmod +x release/GDZLauncher-x86_64.AppImage
+        # launcher.json для самообновления: ссылки ведут прямо на файлы этого релиза.
         python3 tools/make_manifest.py launcher --version "$VERSION" \
-          --windows-dir release --linux-bin release/launcher \
-          --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" \
+          --windows-exe release/GDZLauncher.exe \
+          --linux-appimage release/GDZLauncher-x86_64.AppImage \
+          --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" \
           --out release/launcher.json
-        cd release
-        sha256sum * > SHA256SUMS.txt
-        cat SHA256SUMS.txt
+        (cd release && sha256sum GDZLauncher.exe GDZLauncher-x86_64.AppImage launcher.json > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
     - name: Publish release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: release/*
-        generate_release_notes: true
+      run: |
+        # Та же версия — тот же релиз: удаляем прежний вместе с тегом и публикуем заново на текущем коммите.
+        gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+        gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" >/dev/null 2>&1 || true
+        SHORT="${GITHUB_SHA:0:7}"
+        # shellcheck disable=SC2016  # обратные кавычки в заметках — разметка Markdown, а не подстановка
+        {
+          echo "GDZLauncher ${VERSION}"
+          echo
+          echo '- **Windows:** скачайте `GDZLauncher.exe` и запустите. Установка не нужна.'
+          echo '- **Linux:** скачайте `GDZLauncher-x86_64.AppImage`, выполните `chmod +x GDZLauncher-x86_64.AppImage` и запустите.'
+          echo '  Нужны системные WebKitGTK 4.1 и libcurl (Ubuntu/Debian: `sudo apt install libwebkit2gtk-4.1-0 libcurl4`).'
+          echo
+          echo "Сборка из коммита ${SHORT}."
+        } > notes.md
+        gh release create "$TAG" \
+          release/GDZLauncher.exe \
+          release/GDZLauncher-x86_64.AppImage \
+          release/launcher.json \
+          release/SHA256SUMS.txt \
+          --target "$GITHUB_SHA" \
+          --title "GDZLauncher $VERSION" \
+          --notes-file notes.md \
+          --latest
