@@ -216,27 +216,6 @@ namespace {
 		}, nullptr);
 	}
 
-#ifdef _WIN32
-	/// Windows: launcher.dll загружен и не может заменить сам себя, поэтому обновление выполняет Updater.exe
-	/// после завершения текущего процесса (--wait-pid).
-	bool startUpdater(std::string& err) {
-		fs::path updater = selfupdate::installDir() / "Updater.exe";
-		std::wstring cmd = L"\"" + updater.wstring() + L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
-		std::vector<wchar_t> buf(cmd.begin(), cmd.end());
-		buf.push_back(L'\0');
-		STARTUPINFOW si{};
-		si.cb = sizeof(si);
-		PROCESS_INFORMATION pi{};
-		if (!CreateProcessW(updater.wstring().c_str(), buf.data(), nullptr, nullptr, FALSE, 0, nullptr,
-		                    selfupdate::installDir().wstring().c_str(), &si, &pi)) {
-			err = "Не удалось запустить Updater.exe (код " + std::to_string(GetLastError()) + ")";
-			return false;
-		}
-		CloseHandle(pi.hThread);
-		CloseHandle(pi.hProcess);
-		return true;
-	}
-#endif
 }
 
 bool core::restartRequested() {
@@ -255,6 +234,16 @@ int core::app() {
 				w.set_title("GDZLauncher");
 				w.set_size(980, 640, WEBVIEW_HINT_MIN);
 				w.set_size(1120, 720, WEBVIEW_HINT_NONE);
+#ifdef _WIN32
+				// Иконка окна и панели задач из ресурсов exe (IDI_APP_ICON = 1).
+				if (auto hwnd = w.window(); hwnd.ok()) {
+						HINSTANCE inst = GetModuleHandleW(nullptr);
+						HICON iconBig = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0));
+						HICON iconSmall = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0));
+						if (iconBig) SendMessageW(static_cast<HWND>(hwnd.value()), WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(iconBig));
+						if (iconSmall) SendMessageW(static_cast<HWND>(hwnd.value()), WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(iconSmall));
+				}
+#endif
 
 				// Сведения о лаунчере и сборке.
 				w.bind("gdz_info", [](const std::string&) -> std::string {
@@ -332,9 +321,6 @@ int core::app() {
 				bindAsync(w, "gdz_apply_update", rt, [rt](const std::string&) -> std::string {
 						if (rt->busy) return dump({ { "ok", false }, { "error", "Дождитесь окончания загрузки" } });
 						std::string err;
-#ifdef _WIN32
-						if (!startUpdater(err)) return dump({ { "ok", false }, { "error", err } });
-#else
 						selfupdate::Info info;
 						{
 								std::lock_guard<std::mutex> lock(rt->mutex);
@@ -343,8 +329,8 @@ int core::app() {
 						if (!info.updateAvailable) info = selfupdate::check();
 						if (!info.updateAvailable) return dump({ { "ok", false }, { "error", "Обновление не найдено" } });
 						if (!selfupdate::applyFiles(info, err)) return dump({ { "ok", false }, { "error", err } });
+						// Файл уже заменён: после закрытия окна main()/WinMain запустят новую версию.
 						g_restart = true;
-#endif
 						rt->bridge->terminate();
 						return dump({ { "ok", true } });
 				});

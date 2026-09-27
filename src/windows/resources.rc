@@ -1,0 +1,136 @@
+// resources.rc: ресурсы GDZLauncher.exe (иконка, окно подготовки, версия).
+// Изначально создан RisohEditor 6.2.1.
+// † <-- Этот крестик помогает определять UTF-8.
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 1
+
+#include "resource.h"
+#include "build_config.hpp"
+
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 2
+
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include <windows.h>
+#include <commctrl.h>
+#include <richedit.h>
+#include <winver.h>
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+//////////////////////////////////////////////////////////////////////////////
+
+#pragma code_page(65001) // UTF-8
+
+//////////////////////////////////////////////////////////////////////////////
+
+LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_DIALOG
+
+LAUNCHER_DLG DIALOGEX 0, 0, 260, 72
+CAPTION L"GDZLauncher"
+STYLE WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_DLGMODALFRAME
+FONT 9, "Segoe UI"
+{
+    // Формат CONTROL: текст, идентификатор, класс, стиль, x, y, ширина, высота.
+    // Статусная строка: STATIC вместо EDIT, поэтому не нужно снимать рамку и подменять кисть класса из кода.
+    CONTROL "", ID_STATUS_LABEL, "STATIC", SS_CENTER | WS_CHILD | WS_VISIBLE, 10, 12, 240, 12
+
+    CONTROL "", ID_PROGRESS_BAR, "msctls_progress32",
+          WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
+          20, 36, 220, 8
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Иконка приложения (первая иконка в ресурсах становится иконкой exe в проводнике)
+
+IDI_APP_ICON ICON "gdzlauncher.ico"
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_MANIFEST (только MinGW: MSVC встраивает манифест из ui.manifest сам)
+
+#ifdef GDZ_EMBED_MANIFEST
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "ui.manifest"
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+// VERSIONINFO
+// Версия берётся из project(GDZLauncher VERSION ...) в CMakeLists.txt через build_config.hpp.
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION GDZ_VERSION_MAJOR,GDZ_VERSION_MINOR,GDZ_VERSION_PATCH,0
+PRODUCTVERSION GDZ_VERSION_MAJOR,GDZ_VERSION_MINOR,GDZ_VERSION_PATCH,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "041904B0"
+        {
+            VALUE "CompanyName", "GDZLauncher"
+            VALUE "FileDescription", "GDZLauncher"
+            VALUE "FileVersion", GDZ_VERSION
+            VALUE "InternalName", "GDZLauncher"
+            VALUE "OriginalFilename", "GDZLauncher.exe"
+            VALUE "ProductName", "GDZLauncher"
+            VALUE "ProductVersion", GDZ_VERSION
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x0419, 1200
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// RT_STRING
+
+STRINGTABLE
+{
+    100 L"Загрузка..."
+    101 L"Обновление..."
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// TEXTINCLUDE
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+
+#ifdef APSTUDIO_INVOKED
+
+1 TEXTINCLUDE
+{
+    "resource.h\0"
+}
+
+2 TEXTINCLUDE
+{
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include <windows.h>\r\n"
+    "#include <commctrl.h>\r\n"
+    "#include <richedit.h>\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\0"
+}
+
+3 TEXTINCLUDE
+{
+    "\r\n"
+    "\0"
+}
+
+#endif // def APSTUDIO_INVOKED
+
+//////////////////////////////////////////////////////////////////////////////
+// Сгенерировано из TEXTINCLUDE 3
+
+#ifndef APSTUDIO_INVOKED
+
+#endif // ndef APSTUDIO_INVOKED
+
+//////////////////////////////////////////////////////////////////////////////

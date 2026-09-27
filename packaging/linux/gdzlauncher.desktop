@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=GDZLauncher
+Comment=Minecraft 1.7.10 Forge launcher
+Exec=launcher
+Icon=gdzlauncher
+Terminal=false
+Categories=Game;

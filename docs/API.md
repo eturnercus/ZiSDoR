@@ -79,16 +79,16 @@ python3 tools/make_manifest.py client --dir ./pack --publish ./site \
 
 ```json
 {
-  "version": "0.3.0",
+  "version": "0.002",
   "news": [
     { "title": "Сервер открыт", "date": "26.09.2026", "text": "Текст новости" }
   ],
   "windows": [
-    { "path": "launcher.dll", "url": "bin/windows/launcher.dll", "sha1": "…", "size": 1234567 },
-    { "path": "Updater.exe", "url": "bin/windows/Updater.exe", "sha1": "…", "size": 234567 }
+    { "path": "GDZLauncher.exe", "url": "bin/windows/GDZLauncher.exe", "sha1": "…", "size": 1737728 }
   ],
   "linux": [
-    { "path": "launcher", "url": "bin/linux/launcher", "sha1": "…", "size": 1234567 }
+    { "path": "GDZLauncher-x86_64.AppImage", "url": "bin/linux/GDZLauncher-x86_64.AppImage", "sha1": "…", "size": 1223160 },
+    { "path": "launcher", "url": "bin/linux/launcher", "sha1": "…", "size": 1150000 }
   ]
 }
 ```
@@ -99,17 +99,28 @@ python3 tools/make_manifest.py client --dir ./pack --publish ./site \
 | `news` | До 10 новостей для блока «Вестник»: `title`, `date` (произвольная строка), `text` (переносы строк сохраняются). |
 | `windows`, `linux` | Файлы лаунчера для платформы. `path` — только имя файла, без папок. |
 
+Имена основного файла зарезервированы и сопоставляются с запущенным файлом, даже если пользователь
+его переименовал (например, `GDZLauncher (1).exe`):
+
+| `path` | Что обновляется |
+| --- | --- |
+| `GDZLauncher.exe` | Windows: запущенный exe. |
+| `GDZLauncher-x86_64.AppImage` | Linux, запуск из AppImage: сам файл `.AppImage`. |
+| `launcher` | Linux, запуск обычного бинарника (собранного самостоятельно). Необязательная запись. |
+
+Лаунчер в AppImage пропускает запись `launcher`, обычный бинарник пропускает запись AppImage.
+
 Обновление предлагается, только если `version` отличается от версии установленного лаунчера **и**
 хотя бы один файл отличается по SHA-1. Поэтому локальная сборка разработчика с той же версией
 никогда не будет перезаписана файлами с сервера, а откат на прошлую версию тоже возможен.
 
 Как устанавливается обновление:
 
-* **Windows.** `Updater.exe` проверяет `launcher.json` при каждом старте, до загрузки `launcher.dll`,
-  и заменяет файлы. Если пользователь нажал «Обновить» в интерфейсе, лаунчер запускает `Updater.exe`
-  и закрывается, чтобы освободить `launcher.dll`.
-* **Linux.** Лаунчер скачивает новый бинарник рядом с текущим, заменяет его и перезапускается.
-  Папка с лаунчером должна быть доступна для записи.
+* **Windows.** `GDZLauncher.exe` проверяет `launcher.json` при каждом старте, ещё до открытия интерфейса.
+  Новый exe скачивается рядом, текущий переименовывается в `GDZLauncher.exe.old` (Windows разрешает
+  переименовать запущенный файл), и лаунчер перезапускается. Кнопка «Обновить» в интерфейсе делает то же.
+* **Linux.** Так же заменяется файл `.AppImage` (или обычный бинарник) и лаунчер перезапускается.
+* Папка с лаунчером должна быть доступна для записи (не `Program Files`).
 
 В обоих случаях файл сначала скачивается в `*.new` и проверяется по SHA-1, а старый сохраняется как
 `*.old` до следующего запуска. Без сети лаунчер просто запускает установленную версию.
@@ -117,12 +128,12 @@ python3 tools/make_manifest.py client --dir ./pack --publish ./site \
 Генерация:
 
 ```bash
-python3 tools/make_manifest.py launcher --version 0.3.0 --publish ./site \
-    --windows-dir ./GDZLauncher-windows --linux-bin ./GDZLauncher-linux/launcher --news news.json
+python3 tools/make_manifest.py launcher --version 0.002 --publish ./site \
+    --windows-exe ./GDZLauncher.exe --linux-appimage ./GDZLauncher-x86_64.AppImage --news news.json
 ```
 
-Сборка в GitHub Actions по тегу `v*` сама прикладывает к релизу `launcher.json` со ссылками на файлы
-релиза: его достаточно скопировать в корень API (а новости дописать вручную).
+Сборка в GitHub Actions сама прикладывает к релизу `launcher.json` со ссылками на файлы релиза:
+его достаточно скопировать в корень API (а новости дописать вручную).
 
 ---
 

@@ -13,15 +13,20 @@
 
 Лаунчер (самообновление и новости) -> launcher.json:
 
-    python3 tools/make_manifest.py launcher --version 0.3.0 --publish ./site \\
-        --windows-dir ./dist/windows --linux-bin ./dist/launcher --news news.json
+    python3 tools/make_manifest.py launcher --version 0.002 --publish ./site \\
+        --windows-exe ./GDZLauncher.exe --linux-appimage ./GDZLauncher-x86_64.AppImage --news news.json
+
+    --linux-bin добавляет обычный бинарник Linux (для тех, кто запускает не AppImage, а собранный launcher).
 
     Вместо --publish можно указать --base-url, если файлы уже лежат в другом месте
     (например, в релизе GitHub): тогда в launcher.json попадут абсолютные ссылки.
 """
 import argparse, fnmatch, hashlib, json, os, re, shutil, sys, urllib.parse
 
-WINDOWS_FILES = ["launcher.dll", "Updater.exe"]
+# Имена в launcher.json, по которым лаунчер узнаёт свой файл (src/shared/selfupdate.cpp).
+WINDOWS_EXE = "GDZLauncher.exe"
+LINUX_APPIMAGE = "GDZLauncher-x86_64.AppImage"
+LINUX_BINARY = "launcher"
 
 
 def die(msg):
@@ -134,10 +139,12 @@ def cmd_launcher(a):
         return {"path": name, "url": url, "sha1": sha1_file(path), "size": os.path.getsize(path)}
 
     windows, linux = [], []
-    if a.windows_dir:
-        windows = [entry(os.path.join(a.windows_dir, n), n, "bin/windows/") for n in WINDOWS_FILES]
+    if a.windows_exe:
+        windows.append(entry(a.windows_exe, WINDOWS_EXE, "bin/windows/"))
+    if a.linux_appimage:
+        linux.append(entry(a.linux_appimage, LINUX_APPIMAGE, "bin/linux/"))
     if a.linux_bin:
-        linux = [entry(a.linux_bin, "launcher", "bin/linux/")]
+        linux.append(entry(a.linux_bin, LINUX_BINARY, "bin/linux/"))
 
     news = []
     if a.news:
@@ -169,8 +176,9 @@ def main():
 
     l = sub.add_parser("launcher", help="launcher.json для самообновления и новостей")
     l.add_argument("--version", required=True, help="версия, как в project(GDZLauncher VERSION ...)")
-    l.add_argument("--windows-dir", help="папка с launcher.dll и Updater.exe")
-    l.add_argument("--linux-bin", help="бинарник launcher для Linux")
+    l.add_argument("--windows-exe", help="GDZLauncher.exe для Windows")
+    l.add_argument("--linux-appimage", help="GDZLauncher-x86_64.AppImage для Linux")
+    l.add_argument("--linux-bin", help="обычный бинарник launcher для Linux (необязательно)")
     l.add_argument("--news", help="JSON-массив новостей: [{\"title\", \"date\", \"text\"}]")
     l.add_argument("--publish", help="куда сложить launcher.json и bin/ для выкладки на сервер")
     l.add_argument("--base-url", help="абсолютный адрес, где уже лежат файлы (например, релиз GitHub)")

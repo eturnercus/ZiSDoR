@@ -1,9 +1,14 @@
 // Файл сгенерирован CMake из cmake/build_config.hpp.in. Не редактировать.
 // Параметры сборки лежат в заголовке, а не в -D с кавычками: так их одинаково понимают
-// MSVC, MinGW, GCC и компиляторы ресурсов (rc.exe, windres).
-#pragma once
+// MSVC, MinGW, GCC и компиляторы ресурсов (rc.exe, windres). Поэтому здесь обычный include guard,
+// а не #pragma once, и только #define.
+#ifndef GDZ_BUILD_CONFIG_HPP
+#define GDZ_BUILD_CONFIG_HPP
 
 #define GDZ_VERSION "@PROJECT_VERSION@"
+#define GDZ_VERSION_MAJOR @GDZ_VERSION_MAJOR@
+#define GDZ_VERSION_MINOR @GDZ_VERSION_MINOR@
+#define GDZ_VERSION_PATCH @GDZ_VERSION_PATCH@
 
 #cmakedefine GDZ_API_URL "@GDZ_API_URL@"
 #cmakedefine GDZ_SERVER_ADDRESS "@GDZ_SERVER_ADDRESS@"
@@ -12,3 +17,5 @@
 #cmakedefine GDZ_LIBRARIES_URL "@GDZ_LIBRARIES_URL@"
 #cmakedefine GDZ_FORGE_MAVEN_URL "@GDZ_FORGE_MAVEN_URL@"
 #cmakedefine GDZ_RESOURCES_URL "@GDZ_RESOURCES_URL@"
+
+#endif

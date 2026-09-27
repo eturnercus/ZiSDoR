@@ -4,6 +4,7 @@
 #include "sha1.hpp"
 #include "util.hpp"
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <system_error>
 
 using json = nlohmann::json;
@@ -22,13 +23,28 @@ namespace {
 		return util::isSafeRelative(name) && name.find('/') == std::string::npos;
 	}
 
-	/// Куда устанавливается файл из launcher.json. На Linux запись "launcher" — это сам запущенный бинарник,
-	/// даже если пользователь переименовал его.
-	fs::path localPath(const std::string& name) {
+	// Имена основного файла лаунчера в launcher.json. Они сопоставляются с запущенным файлом,
+	// даже если пользователь его переименовал ("GDZLauncher (1).exe").
+	constexpr const char* kWindowsExe = "GDZLauncher.exe";
+	constexpr const char* kLinuxAppImage = "GDZLauncher-x86_64.AppImage";
+	constexpr const char* kLinuxBinary = "launcher";
+
 #ifndef _WIN32
-		if (name == "launcher") return util::selfExePath();
+	bool runningAsAppImage() { return !util::env("APPIMAGE").empty(); }
 #endif
-		return util::selfExePath().parent_path() / fs::u8path(name);
+
+	/// Куда устанавливается файл из launcher.json, или nullopt, если запись не относится к этому
+	/// способу запуска (например, обычный бинарник Linux при запуске из AppImage).
+	std::optional<fs::path> localPath(const std::string& name) {
+#ifdef _WIN32
+		if (name == kWindowsExe) return selfupdate::restartPath();
+#else
+		const bool appImage = runningAsAppImage();
+		if (name == kLinuxAppImage) return appImage ? std::optional<fs::path>(selfupdate::restartPath()) : std::nullopt;
+		if (name == kLinuxBinary) return appImage ? std::nullopt : std::optional<fs::path>(selfupdate::restartPath());
+		if (appImage) return std::nullopt; // содержимое AppImage доступно только для чтения
+#endif
+		return selfupdate::installDir() / fs::u8path(name);
 	}
 
 	std::string str(const json& j, const char* key) {
@@ -37,8 +53,17 @@ namespace {
 	}
 }
 
+fs::path selfupdate::restartPath() {
+#ifndef _WIN32
+	// Внутри AppImage исполняемый файл лежит в смонтированном образе только для чтения,
+	// обновлять и перезапускать нужно сам файл .AppImage.
+	if (runningAsAppImage()) return fs::u8path(util::env("APPIMAGE"));
+#endif
+	return util::selfExePath();
+}
+
 fs::path selfupdate::installDir() {
-	return util::selfExePath().parent_path();
+	return restartPath().parent_path();
 }
 
 selfupdate::Info selfupdate::check(const std::atomic<bool>* cancel) {
@@ -73,7 +98,9 @@ selfupdate::Info selfupdate::check(const std::atomic<bool>* cancel) {
 				return info;
 			}
 			e.url = util::joinUrl(api, e.url);
-			auto local = sha1::ofFile(localPath(e.path));
+			auto target = localPath(e.path);
+			if (!target) continue;
+			auto local = sha1::ofFile(*target);
 			if (!local || *local != e.sha1) info.files.push_back(e);
 		}
 		info.ok = true;
@@ -106,7 +133,9 @@ bool selfupdate::applyFiles(const Info& info, std::string& err) {
 
 	// 1. Скачиваем всё в *.new и проверяем. До замены ни один установленный файл не трогаем.
 	for (const auto& f : info.files) {
-		fs::path fresh = localPath(f.path);
+		auto target = localPath(f.path);
+		if (!target) continue;
+		fs::path fresh = *target;
 		fresh += ".new";
 		net::Result r = net::download(f.url, fresh);
 		if (!r.ok) {
@@ -128,7 +157,9 @@ bool selfupdate::applyFiles(const Info& info, std::string& err) {
 
 	// 2. Меняем файлы: текущий -> *.old, *.new -> текущий. При ошибке возвращаем старый файл.
 	for (const auto& f : info.files) {
-		fs::path target = localPath(f.path);
+		auto targetPath = localPath(f.path);
+		if (!targetPath) continue;
+		fs::path target = *targetPath;
 		fs::path fresh = target;
 		fresh += ".new";
 		fs::path old = target;
@@ -158,11 +189,7 @@ void selfupdate::cleanup() {
 	// (например, «Загрузки»), где чужие *.old трогать нельзя.
 	std::error_code ec;
 	const fs::path dir = installDir();
-	std::vector<std::string> names = { util::selfExePath().filename().u8string() };
-#ifdef _WIN32
-	names.push_back("launcher.dll");
-	names.push_back("Updater.exe");
-#endif
+	std::vector<std::string> names = { restartPath().filename().u8string() };
 	for (const auto& name : names) {
 		for (const char* suffix : { ".old", ".new", ".new.part" }) {
 			fs::remove(dir / fs::u8path(name + suffix), ec); // занятый файл просто останется до следующего раза

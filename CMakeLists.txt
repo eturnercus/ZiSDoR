@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(GDZLauncher VERSION 0.2.0 LANGUAGES C CXX)
+# Версия лаунчера: из неё берутся номер в интерфейсе, VERSIONINFO exe и тег релиза в GitHub Actions.
+project(GDZLauncher VERSION 0.001 LANGUAGES C CXX)
 
 # Устанавливаем стандарт C++17 для всего проекта
 set(CMAKE_CXX_STANDARD 17)
@@ -121,11 +122,19 @@ find_package(Threads REQUIRED)
 include(cmake/embed_file.cmake)
 set(GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${GENERATED_DIR})
+# Числовые части версии для VERSIONINFO (0.001 -> 0,1,0): ведущие нули и пустые части убираем.
+foreach(PART MAJOR MINOR PATCH)
+    if("${PROJECT_VERSION_${PART}}" STREQUAL "")
+        set(GDZ_VERSION_${PART} 0)
+    else()
+        math(EXPR GDZ_VERSION_${PART} "${PROJECT_VERSION_${PART}} + 0")
+    endif()
+endforeach()
 configure_file(${CMAKE_SOURCE_DIR}/cmake/build_config.hpp.in ${GENERATED_DIR}/build_config.hpp @ONLY)
 embed_file(${CMAKE_SOURCE_DIR}/src/ui/index.html ${GENERATED_DIR}/ui_data.cpp embedded index_html)
 embed_file(${CMAKE_SOURCE_DIR}/src/profiles/forge-1.7.10.json ${GENERATED_DIR}/profile_data.cpp embedded forge_profile)
 
-# Код, общий для обновления (Updater.exe) и лаунчера.
+# Код самообновления и сети (общий для всех платформ).
 set(COMMON_SOURCES
     src/shared/net_common.cpp
     src/shared/sha1.cpp
@@ -156,44 +165,33 @@ if (WIN32)
     # Регистрация класса RC нужна для .rc-файла; в MSVC он включается сам, здесь на всякий случай явно.
     enable_language(RC)
 
-    add_executable(Updater WIN32)
-    gdz_configure(Updater)
-    target_compile_options(Updater PRIVATE ${OPTIMIZE_FLAGS})
-    target_link_options(Updater PRIVATE ${LINK_OPTIMIZE_FLAGS})
-    target_include_directories(Updater PRIVATE src/shared src/windows)
+    # Один исполняемый файл: окно подготовки (WebView2, самообновление) и интерфейс лаунчера.
+    add_executable(GDZLauncher WIN32)
+    gdz_configure(GDZLauncher)
+    target_compile_options(GDZLauncher PRIVATE ${OPTIMIZE_FLAGS})
+    target_link_options(GDZLauncher PRIVATE ${LINK_OPTIMIZE_FLAGS})
+    target_include_directories(GDZLauncher PRIVATE src/shared src/windows)
     if(NOT MSVC)
-        # MSVC встраивает ui.manifest через компоновщик, для MinGW — ресурсом из updater_res.rc.
-        target_compile_definitions(Updater PRIVATE GDZ_EMBED_MANIFEST)
+        # MSVC встраивает ui.manifest через компоновщик, для MinGW — ресурсом из resources.rc.
+        target_compile_definitions(GDZLauncher PRIVATE GDZ_EMBED_MANIFEST)
     endif()
-    target_sources(Updater PRIVATE
-       src/windows/updater.cpp
-       src/windows/bootstrap.cpp
-       src/windows/net_winhttp.cpp
-       ${COMMON_SOURCES}
-       src/windows/updater_res.rc
-       src/windows/ui.manifest
-    )
-    # Updater не использует webview: он проверяет и ставит WebView2, обновляет лаунчер и загружает launcher.dll.
-    target_link_libraries(Updater PRIVATE nlohmann_json::nlohmann_json comctl32 urlmon advapi32 user32 shell32 shlwapi winhttp)
-
-
-    add_library(launcher SHARED)
-    # Updater.exe загружает именно "launcher.dll" (MinGW по умолчанию добавил бы префикс lib).
-    set_target_properties(launcher PROPERTIES PREFIX "")
-    gdz_configure(launcher)
-    target_compile_definitions(launcher PRIVATE LAUNCHER_EXPORTS)
-    target_compile_options(launcher PRIVATE ${OPTIMIZE_FLAGS})
-    target_link_options(launcher PRIVATE ${LINK_OPTIMIZE_FLAGS})
-    target_include_directories(launcher PRIVATE src/shared)
-    target_sources(launcher PRIVATE
-        src/windows/dll_main.cpp
+    target_sources(GDZLauncher PRIVATE
+        src/windows/main.cpp
+        src/windows/bootstrap.cpp
         src/windows/net_winhttp.cpp
         src/windows/process_win.cpp
         ${LAUNCHER_SOURCES}
+        src/windows/resources.rc
+        src/windows/ui.manifest
     )
-    target_link_libraries(launcher PRIVATE webview::core nlohmann_json::nlohmann_json gdz_miniz winhttp shell32)
+    target_link_libraries(GDZLauncher PRIVATE webview::core nlohmann_json::nlohmann_json gdz_miniz
+        comctl32 urlmon advapi32 user32 shell32 shlwapi winhttp)
 else()
-	find_package(CURL REQUIRED)
+	find_package(CURL)
+	if(NOT CURL_FOUND)
+		message(FATAL_ERROR "Не найден libcurl. Установите пакет разработки: sudo apt install libcurl4-openssl-dev "
+		                    "(Fedora: libcurl-devel, Arch: curl). Если это GitHub Actions — обновите .github/workflows/build.yml.")
+	endif()
 
 	add_executable(launcher)
 	gdz_configure(launcher)

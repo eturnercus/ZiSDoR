@@ -9,7 +9,7 @@
 /// \brief Обновление самого лаунчера и новости проекта (файл launcher.json на сервере API).
 namespace selfupdate {
 	struct FileEntry {
-		std::string path; // имя файла в папке лаунчера ("launcher", "launcher.dll", "Updater.exe")
+		std::string path; // "GDZLauncher.exe", "GDZLauncher-x86_64.AppImage" или "launcher" (бинарник Linux)
 		std::string url;
 		std::string sha1;
 		std::uint64_t size = 0;
@@ -29,7 +29,10 @@ namespace selfupdate {
 		std::vector<NewsItem> news;
 	};
 
-	/// Папка, где лежат исполняемые файлы лаунчера.
+	/// Файл лаунчера, который обновляется и перезапускается: GDZLauncher.exe, файл .AppImage или бинарник Linux.
+	std::filesystem::path restartPath();
+
+	/// Папка, где лежит файл лаунчера.
 	std::filesystem::path installDir();
 
 	/// Загружает launcher.json и сравнивает файлы текущей платформы с установленными.

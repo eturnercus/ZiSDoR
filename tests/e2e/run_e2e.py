@@ -151,11 +151,15 @@ class Mock:
             "server": "play.example.org:25570", "syncDirs": ["mods"], "ignore": ["mods/keep-*.jar"],
             "jvmArgs": ["-Dgdz.test=1"], "files": files}, ensure_ascii=False).encode())
 
-    def launcher_json(self, version, binary):
+    def launcher_json(self, version, binary, appimage=None):
         linux = []
         if binary:
             info = self.write("api/bin/launcher", open(binary, "rb").read())
             linux.append({"path": "launcher", "url": "bin/launcher", "sha1": info["sha1"], "size": info["size"]})
+        if appimage:
+            name = "GDZLauncher-x86_64.AppImage"
+            info = self.write("api/bin/" + name, open(appimage, "rb").read())
+            linux.append({"path": name, "url": "bin/" + name, "sha1": info["sha1"], "size": info["size"]})
         self.write("api/launcher.json", json.dumps({
             "version": version, "news": [{"title": "Сервер открыт", "date": "26.09.2026", "text": "Тест"}],
             "linux": linux, "windows": []}, ensure_ascii=False).encode())
@@ -189,9 +193,10 @@ class Runner:
         self.flag = os.path.join(work, "updated.flag")
         self.failures = []
 
-    def run(self, launcher, scenario):
+    def run(self, launcher, scenario, extra_env=None):
         env = dict(os.environ, HOME=self.home, XDG_DATA_HOME="", XDG_CONFIG_HOME="", E2E_SCENARIO=scenario,
                    E2E_FLAG_FILE=self.flag, WEBKIT_DISABLE_COMPOSITING_MODE="1")
+        env.update(extra_env or {})
         os.makedirs(self.home, exist_ok=True)
         p = subprocess.run(["xvfb-run", "-a", launcher], env=env, capture_output=True, text=True, timeout=600)
         results = [json.loads(l[5:]) for l in p.stdout.splitlines() if l.startswith("E2E: ")]
@@ -216,6 +221,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--launcher", required=True, help="лаунчер, собранный с -DGDZ_E2E_HARNESS=ON")
     ap.add_argument("--work", default="/tmp/gdz-e2e")
+    ap.add_argument("--appimage", help="AppImage из того же лаунчера: дополнительно проверить его самообновление")
     ap.add_argument("--java-home", default=os.environ.get("JAVA8_HOME", "/usr/lib/jvm/java-8-openjdk-amd64"))
     args = ap.parse_args()
 
@@ -309,6 +315,28 @@ def main():
         os.remove(r.flag)
         res = r.run(os.path.join(install, "launcher"), "update")
         r.check("повторное обновление не предлагается", res and res[0].get("check", {}).get("updateAvailable") is False, res)
+
+        if args.appimage:
+            print("[6] самообновление AppImage")
+            os.remove(r.flag)
+            ai_dir = os.path.join(work, "install-appimage")
+            os.makedirs(ai_dir)
+            ai = os.path.join(ai_dir, "GDZLauncher-x86_64.AppImage")
+            shutil.copy2(args.appimage, ai)
+            new_ai = os.path.join(work, "new.AppImage")
+            shutil.copy2(args.appimage, new_ai)
+            with open(new_ai, "ab") as f: f.write(b"GDZ-APPIMAGE-MARKER")
+            # В манифесте есть и обычный бинарник: из AppImage он должен игнорироваться.
+            mock.launcher_json("9.9.9", newbin, new_ai)
+            ai_env = {"APPIMAGE_EXTRACT_AND_RUN": "1"}  # в CI и контейнерах нет FUSE
+            res = r.run(ai, "update", ai_env)
+            scenarios = [x.get("scenario") for x in res]
+            r.check("AppImage: обновление найдено", res and res[0].get("check", {}).get("updateAvailable") is True, res)
+            r.check("AppImage: перезапуск после обновления", "after-update" in scenarios, scenarios)
+            r.check("AppImage: файл .AppImage заменён", open(ai, "rb").read().endswith(b"GDZ-APPIMAGE-MARKER"))
+            r.check("AppImage: обычный бинарник рядом не создан", sorted(os.listdir(ai_dir)) == ["GDZLauncher-x86_64.AppImage"],
+                    os.listdir(ai_dir))
+            r.check("AppImage: файл остался исполняемым", os.access(ai, os.X_OK))
     finally:
         server.stop()
 
